@@ -171,6 +171,36 @@ To add new Jac programs:
 3. Test with `jac run yourfile.jac`
 4. Commit and push your changes
 
+## Jac in a Flash Tutorial
+
+This comprehensive tutorial evolves a simple "guess the number" game from Python to fully object-spatial Jac, introducing key language features step by step.
+
+### Tutorial Steps
+
+1. **[Step 0](guess_game.py)** - Python version (starting point)
+2. **[Step 1](guess_game1.jac)** - Direct Jac translation with classes and methods
+3. **[Step 2](guess_game2.jac)** - Using `has` for field declarations
+4. **[Step 3](guess_game3.jac)** - Separating implementation with `impl`
+5. **[Step 4](guess_game4.jac)** - Walker-based graph traversal
+6. **[Step 5](guess_game5.jac)** - Scale-agnostic cloud deployment
+7. **[Step 6](guess_game6.jac)** - AI-enhanced with byLLM integration
+
+Each step maintains the same game behavior while demonstrating different Jac language features and paradigms.
+
+### Running the Tutorial
+
+Run any example with:
+
+```bash
+jac run guess_game1.jac  # Or any step number
+```
+
+For cloud deployment (Step 5+):
+
+```bash
+jac serve guess_game5.jac
+```
+
 ## Learning Resources
 
 - [Jac Documentation](https://docs.jac-lang.org/)
