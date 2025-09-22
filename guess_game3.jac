@@ -3,7 +3,8 @@ import random;
 
 
 obj Game {
-    has attempts: int, won: bool = False;
+    has attempts: int;
+    has won: bool;
 
     def play {
         raise NotImplementedError("Subclasses must implement this method.");
@@ -12,11 +13,12 @@ obj Game {
 
 
 obj GuessTheNumberGame (Game) {
-    has correct_number: int = random.randint(1, 10);
+    has correct_number: int;
 
     def init {
         self.attempts = 10;
         self.won = False;
+        self.correct_number = random.randint(1, 10);
     }
 
     def play {
