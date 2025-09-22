@@ -1,7 +1,7 @@
-# Virtual environments (venv already has its own .gitignore)
-.venv/
-env/
-.env/
+# Virtual environments - allowing venv to be tracked
+# .venv/
+# env/
+# .env/
 
 # Python cache files
 __pycache__/
