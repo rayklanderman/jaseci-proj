@@ -76,3 +76,10 @@ Thumbs.db
 # Jac specific (if any)
 *.jac.bak
 .jac_cache/
+
+# AI Task Manager Frontend
+ai-task-manager/frontend/node_modules/
+ai-task-manager/frontend/dist/
+ai-task-manager/frontend/.env.local
+ai-task-manager/frontend/.env.production
+ai-task-manager/frontend/yarn-error.log

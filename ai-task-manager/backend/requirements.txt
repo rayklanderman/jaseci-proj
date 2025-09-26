@@ -1,0 +1,3 @@
+# Requirements for deployment
+jaclang>=0.8.7
+byllm>=0.1.0

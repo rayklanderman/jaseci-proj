@@ -2,45 +2,56 @@
 
 import random;
 
+"""A Number Guessing Game - Step 5: Scale-Agnostic Cloud Deployment"""
+
+import random;
+
 walker GuessGame {
     has guess: int;
-    has attempts: int = 10;
 
     can start with `root entry {
-        print(f"Starting new game with guess: {self.guess}");
-        visit [-->];
+        print(f"🎲 Starting new game with guess: {self.guess}");
+        if not [root --> (`?turn)] {
+            next = root ++> turn(correct_number=random.randint(1, 10));
+        } else {
+            next = [root --> (`?turn)];
+        }
+        visit next;
     }
 
     can process_guess with turn entry {
-        print(f"Processing guess: {self.guess}");
-        if self.guess == here.correct_number {
-            print("Congratulations! You guessed correctly.");
-            return {"result": "win", "guess": self.guess, "correct": here.correct_number};
-        } elif self.guess > here.correct_number {
-            print("Too high!");
-            return {"result": "too_high", "guess": self.guess, "correct": here.correct_number};
+        print(f"🎯 Processing guess: {self.guess}");
+        
+        if [-->] {
+            visit [-->];
         } else {
-            print("Too low!");
-            return {"result": "too_low", "guess": self.guess, "correct": here.correct_number};
+            if self.guess < here.correct_number {
+                print("Too low!");
+                here ++> turn(correct_number=here.correct_number);
+            } elif self.guess > here.correct_number {
+                print("Too high!");
+                here ++> turn(correct_number=here.correct_number);
+            } else {
+                print("🎉 Congratulations! You guessed correctly!");
+                disengage;
+            }
         }
     }
 }
 
 node turn {
-    has correct_number: int = random.randint(1, 10);
+    has correct_number: int;
 }
 
-# Will run when in CLI mode (not in cloud)
+# Will run when in CLI mode (not in cloud)  
 with entry:__main__ {
-    root ++> turn();
+    print("🎲 Scale-Agnostic Cloud Deployment Demo");
+    print("=" * 40);
+    print("💡 This same code can run as cloud service with 'jac serve'");
+    print("");
     
-    print("CLI Mode - Testing multiple guesses:");
-    result1 = root spawn GuessGame(guess=3);
-    print(f"Result for guess 3: {result1}");
-    
-    result2 = root spawn GuessGame(guess=7);
-    print(f"Result for guess 7: {result2}");
-    
-    result3 = root spawn GuessGame(guess=5);
-    print(f"Result for guess 5: {result3}");
+    root spawn GuessGame(guess=3);
+    root spawn GuessGame(guess=4);
+    root spawn GuessGame(guess=5);
+    root spawn GuessGame(guess=6);
 }
