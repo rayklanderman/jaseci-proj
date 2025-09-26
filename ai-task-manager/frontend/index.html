@@ -1,13 +1,85 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>frontend</title>
+
+    <!-- PWA Meta Tags -->
+    <meta
+      name="description"
+      content="AI-powered task management with intelligent categorization and productivity insights"
+    />
+    <meta name="theme-color" content="#2196f3" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="AI Tasks" />
+    <meta name="msapplication-TileColor" content="#2196f3" />
+
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json" />
+
+    <!-- Apple Touch Icons -->
+    <link rel="apple-touch-icon" href="/icon.svg" />
+    <link rel="apple-touch-icon" sizes="192x192" href="/icon.svg" />
+
+    <title>🤖 AI Task Manager</title>
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+
+    <!-- PWA Service Worker Registration -->
+    <script>
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+          navigator.serviceWorker
+            .register("/service-worker.js")
+            .then((registration) => {
+              console.log("✅ SW registered:", registration);
+            })
+            .catch((registrationError) => {
+              console.log("❌ SW registration failed:", registrationError);
+            });
+        });
+      }
+
+      // PWA Install Prompt
+      let deferredPrompt;
+      window.addEventListener("beforeinstallprompt", (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+
+        // Show install button/banner
+        const installButton = document.createElement("button");
+        installButton.textContent = "📱 Install AI Task Manager";
+        installButton.style.cssText = `
+          position: fixed; top: 20px; right: 20px; z-index: 1000;
+          background: #2196f3; color: white; border: none; padding: 12px 20px;
+          border-radius: 8px; cursor: pointer; font-weight: bold;
+          box-shadow: 0 4px 12px rgba(33, 150, 243, 0.3);
+        `;
+
+        installButton.addEventListener("click", () => {
+          deferredPrompt.prompt();
+          deferredPrompt.userChoice.then((choiceResult) => {
+            if (choiceResult.outcome === "accepted") {
+              console.log("✅ User accepted the install prompt");
+            }
+            deferredPrompt = null;
+            installButton.remove();
+          });
+        });
+
+        document.body.appendChild(installButton);
+
+        // Auto-hide after 10 seconds
+        setTimeout(() => {
+          if (installButton.parentNode) {
+            installButton.remove();
+          }
+        }, 10000);
+      });
+    </script>
   </body>
 </html>

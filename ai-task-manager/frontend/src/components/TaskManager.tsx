@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
-import taskService from "../services/api";
+import autoSwitchingTaskService from "../services/autoSwitchingApi";
+import type { BackendStatus } from "../services/backendDetector";
 import type { Task, TaskListResponse } from "../types/api";
 
 interface TaskItemProps {
@@ -235,12 +236,26 @@ const TaskManager: React.FC = () => {
   const [newTaskDescription, setNewTaskDescription] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [backendStatus, setBackendStatus] = useState<BackendStatus | null>(
+    null
+  );
+
+  // Update backend status periodically
+  useEffect(() => {
+    const updateStatus = () => {
+      setBackendStatus(autoSwitchingTaskService.getBackendStatus());
+    };
+
+    updateStatus();
+    const interval = setInterval(updateStatus, 2000);
+    return () => clearInterval(interval);
+  }, []);
 
   const loadTasks = async () => {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await taskService.getTasks();
+      const response = await autoSwitchingTaskService.getTasks();
       if (response.success) {
         setTasks(response);
       } else {
@@ -259,7 +274,9 @@ const TaskManager: React.FC = () => {
 
     setIsLoading(true);
     try {
-      const response = await taskService.createTask(newTaskDescription.trim());
+      const response = await autoSwitchingTaskService.createTask(
+        newTaskDescription.trim()
+      );
       if (response.success) {
         setNewTaskDescription("");
         await loadTasks();
@@ -276,7 +293,7 @@ const TaskManager: React.FC = () => {
   const completeTask = async (taskId: number) => {
     setIsLoading(true);
     try {
-      const response = await taskService.completeTask(taskId);
+      const response = await autoSwitchingTaskService.completeTask(taskId);
       if (response.success) {
         await loadTasks();
       } else {
@@ -292,7 +309,7 @@ const TaskManager: React.FC = () => {
   const deleteTask = async (taskId: number) => {
     setIsLoading(true);
     try {
-      const response = await taskService.deleteTask(taskId);
+      const response = await autoSwitchingTaskService.deleteTask(taskId);
       if (response.success) {
         await loadTasks();
       } else {
@@ -324,7 +341,7 @@ const TaskManager: React.FC = () => {
 
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
-        <div className="text-center mb-12">
+        <div className="text-center mb-8">
           <div className="inline-flex items-center gap-4 mb-6">
             <div className="p-3 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl shadow-xl">
               <span className="text-2xl">🤖</span>
@@ -339,6 +356,65 @@ const TaskManager: React.FC = () => {
             </div>
           </div>
         </div>
+
+        {/* Backend Status Indicator */}
+        {backendStatus && (
+          <div className="max-w-2xl mx-auto mb-8">
+            <div
+              className={`bg-white/70 backdrop-blur-xl border rounded-2xl px-6 py-4 shadow-lg transition-all duration-300 ${
+                backendStatus.isAvailable
+                  ? "border-green-200 bg-gradient-to-r from-green-50 to-emerald-50"
+                  : "border-blue-200 bg-gradient-to-r from-blue-50 to-cyan-50"
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div
+                    className={`p-2 rounded-xl ${
+                      backendStatus.isAvailable
+                        ? "bg-green-500 text-white"
+                        : "bg-blue-500 text-white"
+                    }`}
+                  >
+                    <span className="text-sm">
+                      {backendStatus.isAvailable ? "🚀" : "📱"}
+                    </span>
+                  </div>
+                  <div>
+                    <p className="font-semibold text-slate-800">
+                      {backendStatus.isAvailable
+                        ? "Jac AI Backend Active"
+                        : "Local Mode Active"}
+                    </p>
+                    <p className="text-sm text-slate-600">
+                      {backendStatus.isAvailable
+                        ? `Real AI processing • v${backendStatus.version}`
+                        : "Pattern matching • Browser storage"}
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div
+                    className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${
+                      backendStatus.isAvailable
+                        ? "bg-green-100 text-green-700"
+                        : "bg-blue-100 text-blue-700"
+                    }`}
+                  >
+                    <div
+                      className={`w-2 h-2 rounded-full ${
+                        backendStatus.isAvailable
+                          ? "bg-green-500"
+                          : "bg-blue-500"
+                      }`}
+                    ></div>
+                    {backendStatus.mode.replace("-", " ").toUpperCase()}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Stats Dashboard */}
         {tasks && (

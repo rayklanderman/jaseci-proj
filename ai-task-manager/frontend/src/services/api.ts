@@ -10,7 +10,9 @@ import type {
 } from "../types/api";
 
 // AI Categorization Logic (same as Jac backend)
-function categorizeTask(description: string): string {
+function categorizeTask(
+  description: string
+): "Work" | "Personal" | "Health" | "Learning" | "General" {
   const desc = description.toLowerCase();
 
   if (

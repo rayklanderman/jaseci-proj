@@ -29,6 +29,7 @@ export interface TaskResponse {
   task?: Task;
   message?: string;
   error?: string;
+  task_id?: number;
 }
 
 export interface CreateTaskRequest {

@@ -1,0 +1,35 @@
+<!-- Simple SVG icon for AI Task Manager -->
+<svg width="192" height="192" viewBox="0 0 192 192" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background circle -->
+  <circle cx="96" cy="96" r="96" fill="#2196F3"/>
+  
+  <!-- AI Brain icon -->
+  <circle cx="96" cy="80" r="40" fill="white" opacity="0.9"/>
+  <circle cx="85" cy="75" r="6" fill="#2196F3"/>
+  <circle cx="107" cy="75" r="6" fill="#2196F3"/>
+  <path d="M80 90 Q96 100 112 90" stroke="#2196F3" stroke-width="3" fill="none"/>
+  
+  <!-- Circuit pattern -->
+  <g stroke="white" stroke-width="2" fill="none" opacity="0.6">
+    <line x1="60" y1="120" x2="80" y2="120"/>
+    <line x1="112" y1="120" x2="132" y2="120"/>
+    <line x1="70" y1="110" x2="70" y2="130"/>
+    <line x1="122" y1="110" x2="122" y2="130"/>
+    <circle cx="70" cy="120" r="3"/>
+    <circle cx="122" cy="120" r="3"/>
+  </g>
+  
+  <!-- Task checkmarks -->
+  <g fill="white" opacity="0.8">
+    <path d="M60 140 L65 145 L75 135" stroke="white" stroke-width="3" fill="none"/>
+    <path d="M100 140 L105 145 L115 135" stroke="white" stroke-width="3" fill="none"/>
+    <path d="M80 155 L85 160 L95 150" stroke="white" stroke-width="3" fill="none"/>
+  </g>
+  
+  <!-- AI sparkles -->
+  <g fill="white" opacity="0.7">
+    <polygon points="40,60 42,65 47,65 43,68 44,73 40,70 36,73 37,68 33,65 38,65"/>
+    <polygon points="150,50 152,55 157,55 153,58 154,63 150,60 146,63 147,58 143,55 148,55"/>
+    <polygon points="155,130 157,135 162,135 158,138 159,143 155,140 151,143 152,138 148,135 153,135"/>
+  </g>
+</svg>
