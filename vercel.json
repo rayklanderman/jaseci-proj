@@ -1,10 +1,11 @@
 {
   "version": 2,
   "name": "ai-task-manager",
-  "buildCommand": "cd ai-task-manager/frontend && yarn build",
-  "outputDirectory": "ai-task-manager/frontend/dist",
-  "installCommand": "cd ai-task-manager/frontend && yarn install",
-  "framework": null,
+  "rootDirectory": "ai-task-manager/frontend",
+  "buildCommand": "yarn build",
+  "outputDirectory": "dist",
+  "installCommand": "yarn install",
+  "framework": "vite",
   "rewrites": [
     {
       "source": "/(.*)",

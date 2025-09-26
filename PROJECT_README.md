@@ -8,7 +8,7 @@ A comprehensive project demonstrating modern AI-powered task management using **
 jaseci-proj/
 ├── 📚 JAC TUTORIAL FILES (Learning & Reference)
 │   ├── guess_game1.jac → guess_game6.jac    # Step-by-step tutorial progression
-│   ├── hello.jac                            # Basic Jac introduction  
+│   ├── hello.jac                            # Basic Jac introduction
 │   ├── single_entry.jac, multiple_entry.jac # Entry point examples
 │   └── guess_game.py                        # Python comparison
 │
@@ -36,17 +36,20 @@ jaseci-proj/
 ## 🚀 Features
 
 ### 🧠 **AI-Powered Intelligence**
+
 - **Smart Categorization**: Automatically categorizes tasks (Work, Personal, Health, Learning)
 - **Productivity Insights**: AI-generated recommendations based on completion patterns
 - **Intelligent Prioritization**: Dynamic task priority suggestions
 
 ### 🎨 **Modern Frontend**
+
 - **Glassmorphism Design**: Beautiful backdrop blur with translucent panels
 - **Responsive Layout**: Works perfectly on desktop, tablet, and mobile
 - **Real-time Updates**: Instant UI feedback with smooth animations
 - **TypeScript**: Full type safety and developer experience
 
 ### ⚡ **Technical Excellence**
+
 - **Jac Language Backend**: Cutting-edge graph-based programming
 - **Walker Architecture**: Scalable service-ready design
 - **Local Storage**: Persistent task data without backend dependency
@@ -55,6 +58,7 @@ jaseci-proj/
 ## 🛠️ Quick Start
 
 ### Prerequisites
+
 - **Node.js** 16+ and **Yarn**
 - **Python** 3.8+ with **Jac Language** installed
 - **Git** for version control
@@ -93,14 +97,14 @@ jac run ai_task_manager_service.jac
 
 This project demonstrates the complete Jac learning journey:
 
-| File | Concepts | Status |
-|------|----------|---------|
-| `guess_game1.jac` | Basic Jac syntax | ✅ Complete |
-| `guess_game2.jac` | Variables & logic | ✅ Complete |
-| `guess_game3.jac` | Functions & flow | ✅ Complete |
-| `guess_game4.jac` | Nodes & graphs | ✅ Complete |
+| File              | Concepts             | Status      |
+| ----------------- | -------------------- | ----------- |
+| `guess_game1.jac` | Basic Jac syntax     | ✅ Complete |
+| `guess_game2.jac` | Variables & logic    | ✅ Complete |
+| `guess_game3.jac` | Functions & flow     | ✅ Complete |
+| `guess_game4.jac` | Nodes & graphs       | ✅ Complete |
 | `guess_game5.jac` | **Cloud deployment** | ✅ Complete |
-| `guess_game6.jac` | **AI integration** | ✅ Complete |
+| `guess_game6.jac` | **AI integration**   | ✅ Complete |
 
 **Part 2**: Full application showcasing Steps 5 & 6 concepts ✅
 
@@ -109,6 +113,7 @@ This project demonstrates the complete Jac learning journey:
 ### 🎨 **Frontend Deployment (Recommended: Vercel)**
 
 1. **Build the project**:
+
    ```bash
    cd ai-task-manager/frontend
    yarn build
@@ -122,6 +127,7 @@ This project demonstrates the complete Jac learning journey:
 ### 🧠 **Backend Deployment**
 
 The Jac backends are ready for cloud deployment:
+
 - **Railway**: For Jac service hosting
 - **Heroku**: Python-compatible platform
 - **Google Cloud**: Enterprise-grade scaling
@@ -144,6 +150,7 @@ The Jac backends are ready for cloud deployment:
 ## 🛠️ Development
 
 ### Technologies Used
+
 - **Backend**: Jac Language (graph-based programming)
 - **Frontend**: TypeScript + React + Vite
 - **Styling**: Tailwind CSS + Custom animations
@@ -151,6 +158,7 @@ The Jac backends are ready for cloud deployment:
 - **Build Tools**: Vite + PostCSS
 
 ### Local Development
+
 ```bash
 # Frontend development
 cd ai-task-manager/frontend
@@ -179,4 +187,4 @@ jac run task_manager_final.jac
 ---
 
 **🚀 Built with Jac Language & Modern Web Technologies**  
-*Demonstrating the future of AI-powered task management*
+_Demonstrating the future of AI-powered task management_

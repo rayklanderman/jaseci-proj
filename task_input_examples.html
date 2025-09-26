@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI Task Manager - Input Test</title>
+    <style>
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+      }
+      .container {
+        background: white;
+        padding: 30px;
+        border-radius: 15px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+      }
+      h1 {
+        color: #2c3e50;
+        text-align: center;
+        margin-bottom: 30px;
+      }
+      .test-category {
+        margin-bottom: 30px;
+        padding: 20px;
+        background: #f8f9fa;
+        border-radius: 10px;
+        border-left: 4px solid #3498db;
+      }
+      .test-category h3 {
+        margin-top: 0;
+        color: #2c3e50;
+      }
+      .example {
+        background: white;
+        padding: 10px 15px;
+        margin: 10px 0;
+        border-radius: 8px;
+        border: 1px solid #e9ecef;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .example:hover {
+        background: #e3f2fd;
+        border-color: #2196f3;
+      }
+      .category-badge {
+        display: inline-block;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        font-weight: bold;
+        margin-left: 10px;
+      }
+      .work {
+        background: #e3f2fd;
+        color: #1976d2;
+      }
+      .personal {
+        background: #e8f5e8;
+        color: #388e3c;
+      }
+      .health {
+        background: #fce4ec;
+        color: #c2185b;
+      }
+      .learning {
+        background: #f3e5f5;
+        color: #7b1fa2;
+      }
+      .general {
+        background: #f5f5f5;
+        color: #616161;
+      }
+      .priority-high {
+        border-left: 3px solid #f44336;
+      }
+      .priority-medium {
+        border-left: 3px solid #ff9800;
+      }
+      .priority-low {
+        border-left: 3px solid #4caf50;
+      }
+      .instructions {
+        background: #e8f5e8;
+        padding: 20px;
+        border-radius: 10px;
+        margin-bottom: 30px;
+      }
+      .copy-button {
+        background: #2196f3;
+        color: white;
+        border: none;
+        padding: 5px 10px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 12px;
+        margin-left: 10px;
+      }
+      .copy-button:hover {
+        background: #1976d2;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>🤖 AI Task Manager - Input Examples</h1>
+
+      <div class="instructions">
+        <h3>🎯 How to Use</h3>
+        <p>
+          <strong>Your AI Task Manager is running at:</strong>
+          <a href="http://localhost:5173/" target="_blank"
+            >http://localhost:5173/</a
+          >
+        </p>
+        <p>
+          Click any example below to copy it, then paste into your task manager
+          to see the AI categorization in action!
+        </p>
+      </div>
+
+      <div class="test-category">
+        <h3>🏢 Work Tasks</h3>
+        <p>
+          These will be auto-categorized as
+          <span class="category-badge work">WORK</span>
+        </p>
+
+        <div
+          class="example priority-high"
+          onclick="copyText('finish quarterly report by Friday URGENT')"
+        >
+          finish quarterly report by Friday URGENT
+          <span class="category-badge work">WORK</span>
+          <button class="copy-button">Copy</button>
+        </div>
+
+        <div
+          class="example priority-medium"
+          onclick="copyText('prepare presentation for Monday meeting')"
+        >
+          prepare presentation for Monday meeting
+          <span class="category-badge work">WORK</span>
+          <button class="copy-button">Copy</button>
+        </div>
+
+        <div
+          class="example priority-medium"
+          onclick="copyText('send email to client about project update')"
+        >
+          send email to client about project update
+          <span class="category-badge work">WORK</span>
+          <button class="copy-button">Copy</button>
+        </div>
+
+        <div
+          class="example priority-high"
+          onclick="copyText('review budget proposal by end of day')"
+        >
+          review budget proposal by end of day
+          <span class="category-badge work">WORK</span>
+          <button class="copy-button">Copy</button>
+        </div>
+      </div>
+
+      <div class="test-category">
+        <h3>🏠 Personal Tasks</h3>
+        <p>
+          These will be auto-categorized as
+          <span class="category-badge personal">PERSONAL</span>
+        </p>
+
+        <div
+          class="example priority-medium"
+          onclick="copyText('buy groceries and milk')"
+        >
+          buy groceries and milk
+          <span class="category-badge personal">PERSONAL</span>
+          <button class="copy-button">Copy</button>
+        </div>
+
+        <div
+          class="example priority-low"
+          onclick="copyText('clean the house this weekend')"
+        >
+          clean the house this weekend
+          <span class="category-badge personal">PERSONAL</span>
+          <button class="copy-button">Copy</button>
+        </div>
+
+        <div
+          class="example priority-high"
+          onclick="copyText('pay electricity bill today')"
+        >
+          pay electricity bill today
+          <span class="category-badge personal">PERSONAL</span>
+          <button class="copy-button">Copy</button>
+        </div>
+
+        <div
+          class="example priority-medium"
+          onclick="copyText('schedule dentist appointment')"
+        >
+          schedule dentist appointment
+          <span class="category-badge personal">PERSONAL</span>
+          <button class="copy-button">Copy</button>
+        </div>
+      </div>
+
+      <div class="test-category">
+        <h3>💪 Health & Fitness</h3>
+        <p>
+          These will be auto-categorized as
+          <span class="category-badge health">HEALTH</span>
+        </p>
+
+        <div
+          class="example priority-medium"
+          onclick="copyText('go for a 30-minute run')"
+        >
+          go for a 30-minute run
+          <span class="category-badge health">HEALTH</span>
+          <button class="copy-button">Copy</button>
+        </div>
+
+        <div
+          class="example priority-medium"
+          onclick="copyText('exercise at the gym')"
+        >
+          exercise at the gym
+          <span class="category-badge health">HEALTH</span>
+          <button class="copy-button">Copy</button>
+        </div>
+
+        <div
+          class="example priority-low"
+          onclick="copyText('take vitamins and supplements')"
+        >
+          take vitamins and supplements
+          <span class="category-badge health">HEALTH</span>
+          <button class="copy-button">Copy</button>
+        </div>
+
+        <div
+          class="example priority-high"
+          onclick="copyText('schedule doctor appointment ASAP')"
+        >
+          schedule doctor appointment ASAP
+          <span class="category-badge health">HEALTH</span>
+          <button class="copy-button">Copy</button>
+        </div>
+      </div>
+
+      <div class="test-category">
+        <h3>📚 Learning Tasks</h3>
+        <p>
+          These will be auto-categorized as
+          <span class="category-badge learning">LEARNING</span>
+        </p>
+
+        <div
+          class="example priority-medium"
+          onclick="copyText('read chapter 5 of Python book')"
+        >
+          read chapter 5 of Python book
+          <span class="category-badge learning">LEARNING</span>
+          <button class="copy-button">Copy</button>
+        </div>
+
+        <div
+          class="example priority-medium"
+          onclick="copyText('study Spanish for 30 minutes')"
+        >
+          study Spanish for 30 minutes
+          <span class="category-badge learning">LEARNING</span>
+          <button class="copy-button">Copy</button>
+        </div>
+
+        <div
+          class="example priority-low"
+          onclick="copyText('learn React hooks tutorial')"
+        >
+          learn React hooks tutorial
+          <span class="category-badge learning">LEARNING</span>
+          <button class="copy-button">Copy</button>
+        </div>
+
+        <div
+          class="example priority-high"
+          onclick="copyText('study for certification exam tomorrow')"
+        >
+          study for certification exam tomorrow
+          <span class="category-badge learning">LEARNING</span>
+          <button class="copy-button">Copy</button>
+        </div>
+      </div>
+
+      <div class="test-category">
+        <h3>📋 General Tasks</h3>
+        <p>
+          These will be auto-categorized as
+          <span class="category-badge general">GENERAL</span>
+        </p>
+
+        <div
+          class="example priority-low"
+          onclick="copyText('plan vacation for next summer')"
+        >
+          plan vacation for next summer
+          <span class="category-badge general">GENERAL</span>
+          <button class="copy-button">Copy</button>
+        </div>
+
+        <div
+          class="example priority-medium"
+          onclick="copyText('research new laptop options')"
+        >
+          research new laptop options
+          <span class="category-badge general">GENERAL</span>
+          <button class="copy-button">Copy</button>
+        </div>
+
+        <div
+          class="example priority-low"
+          onclick="copyText('organize digital photos')"
+        >
+          organize digital photos
+          <span class="category-badge general">GENERAL</span>
+          <button class="copy-button">Copy</button>
+        </div>
+      </div>
+
+      <div style="text-align: center; margin-top: 40px">
+        <p><strong>🚀 Ready to test?</strong></p>
+        <a
+          href="http://localhost:5173/"
+          target="_blank"
+          style="
+            background: #2196f3;
+            color: white;
+            padding: 15px 30px;
+            text-decoration: none;
+            border-radius: 8px;
+            display: inline-block;
+          "
+        >
+          Open AI Task Manager
+        </a>
+      </div>
+    </div>
+
+    <script>
+      async function copyText(text) {
+        try {
+          await navigator.clipboard.writeText(text);
+
+          // Show feedback
+          const button = event.target;
+          const originalText = button.textContent;
+          button.textContent = "Copied!";
+          button.style.background = "#4caf50";
+
+          setTimeout(() => {
+            button.textContent = originalText;
+            button.style.background = "#2196f3";
+          }, 1000);
+        } catch (err) {
+          // Fallback for older browsers
+          const textArea = document.createElement("textarea");
+          textArea.value = text;
+          document.body.appendChild(textArea);
+          textArea.focus();
+          textArea.select();
+          document.execCommand("copy");
+          document.body.removeChild(textArea);
+
+          alert("Copied: " + text);
+        }
+      }
+    </script>
+  </body>
+</html>
