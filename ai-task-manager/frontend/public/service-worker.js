@@ -5,8 +5,8 @@ const urlsToCache = [
   "/static/js/bundle.js",
   "/static/css/main.css",
   "/manifest.json",
-  "/icon-192.png",
-  "/icon-512.png",
+  "/icon.svg",
+  "/vite.svg",
 ];
 
 // Install event - cache resources
@@ -55,30 +55,48 @@ self.addEventListener("fetch", (event) => {
         }
 
         console.log("🌐 Fetching from network:", event.request.url);
-        return fetch(event.request).then((response) => {
-          // Don't cache non-successful responses
-          if (
-            !response ||
-            response.status !== 200 ||
-            response.type !== "basic"
-          ) {
+        return fetch(event.request)
+          .then((response) => {
+            // Don't cache non-successful responses
+            if (
+              !response ||
+              response.status !== 200 ||
+              response.type !== "basic"
+            ) {
+              return response;
+            }
+
+            // Clone the response for caching
+            const responseToCache = response.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(event.request, responseToCache);
+            });
+
             return response;
-          }
-
-          // Clone the response for caching
-          const responseToCache = response.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseToCache);
+          })
+          .catch((error) => {
+            console.log("❌ Network fetch failed:", event.request.url, error);
+            // Return a basic response for failed requests
+            if (event.request.destination === "document") {
+              return caches.match("/");
+            }
+            // For API requests, return a simple error response
+            return new Response(
+              JSON.stringify({ error: "Network unavailable" }),
+              {
+                headers: { "Content-Type": "application/json" },
+                status: 503,
+              }
+            );
           });
-
-          return response;
-        });
       })
-      .catch(() => {
+      .catch((error) => {
+        console.log("❌ Cache match failed:", error);
         // Offline fallback
         if (event.request.destination === "document") {
           return caches.match("/");
         }
+        return new Response("Offline", { status: 503 });
       })
   );
 });
@@ -97,7 +115,7 @@ self.addEventListener("push", (event) => {
     const data = event.data.json();
     const options = {
       body: data.body,
-      icon: "/icon-192.png",
+      icon: "/icon.svg",
       badge: "/badge.png",
       tag: data.tag || "task-reminder",
       requireInteraction: data.priority === "high",

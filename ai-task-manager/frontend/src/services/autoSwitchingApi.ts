@@ -46,6 +46,10 @@ class AutoSwitchingTaskService {
    * Get tasks (auto-switching)
    */
   async getTasks(): Promise<TaskListResponse> {
+    const backendStatus = backendDetector.getStatus();
+    console.log("🔍 Debug - Backend status for getTasks:", backendStatus);
+    console.log("🔍 Debug - useJacBackend():", backendDetector.useJacBackend());
+
     if (backendDetector.useJacBackend()) {
       try {
         console.log("🚀 Using Jac backend for task list");

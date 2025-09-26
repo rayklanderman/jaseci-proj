@@ -132,7 +132,15 @@ class BackendDetectionService {
    * Check if we should use Jac backend for API calls
    */
   useJacBackend(): boolean {
-    return this.status.isAvailable && this.status.mode === "jac-backend";
+    const result =
+      this.status.isAvailable && this.status.mode === "jac-backend";
+    console.log("🔍 useJacBackend() called:", {
+      isAvailable: this.status.isAvailable,
+      mode: this.status.mode,
+      result: result,
+      fullStatus: this.status,
+    });
+    return result;
   }
 
   /**

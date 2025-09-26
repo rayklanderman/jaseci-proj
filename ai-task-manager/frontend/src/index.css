@@ -2,6 +2,259 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Professional Design System - X-inspired */
+:root {
+  /* Professional Color Palette */
+  --color-primary: #1d4ed8;
+  --color-primary-dark: #1e3a8a;
+  --color-secondary: #6b7280;
+  --color-accent: #3b82f6;
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
+  --color-danger: #ef4444;
+
+  /* Professional Surfaces */
+  --bg-primary: #ffffff;
+  --bg-secondary: #f8fafc;
+  --bg-tertiary: #f1f5f9;
+  --bg-card: #ffffff;
+  --bg-overlay: rgba(15, 23, 42, 0.1);
+
+  /* Professional Borders */
+  --border-primary: #e2e8f0;
+  --border-secondary: #cbd5e1;
+  --border-focus: #3b82f6;
+
+  /* Professional Text */
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-tertiary: #64748b;
+  --text-inverse: #ffffff;
+
+  /* Professional Shadows */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1),
+    0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1),
+    0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1),
+    0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+[data-theme="dark"] {
+  /* Dark Mode Professional Palette */
+  --bg-primary: #0f172a;
+  --bg-secondary: #1e293b;
+  --bg-tertiary: #334155;
+  --bg-card: #1e293b;
+  --bg-overlay: rgba(255, 255, 255, 0.05);
+
+  --border-primary: #334155;
+  --border-secondary: #475569;
+
+  --text-primary: #f8fafc;
+  --text-secondary: #cbd5e1;
+  --text-tertiary: #94a3b8;
+}
+
+/* Professional Base Styles */
+* {
+  box-sizing: border-box;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen",
+    "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue",
+    sans-serif;
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  line-height: 1.6;
+  font-size: 15px;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* Professional Component Styles */
+.pro-card {
+  @apply bg-white border border-slate-200 rounded-xl shadow-sm hover:shadow-md transition-all duration-200;
+  background-color: var(--bg-card);
+  border-color: var(--border-primary);
+}
+
+.pro-button {
+  @apply inline-flex items-center justify-center px-4 py-2 text-sm font-medium rounded-lg border transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2;
+}
+
+.pro-button-primary {
+  @apply pro-button bg-blue-600 text-white border-blue-600 hover:bg-blue-700 focus:ring-blue-500;
+}
+
+.pro-button-secondary {
+  @apply pro-button bg-white text-slate-700 border-slate-300 hover:bg-slate-50 focus:ring-slate-500;
+  background-color: var(--bg-card);
+  border-color: var(--border-primary);
+  color: var(--text-secondary);
+}
+
+.pro-input {
+  @apply block w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200;
+  background-color: var(--bg-card);
+  border-color: var(--border-primary);
+  color: var(--text-primary);
+}
+
+.pro-input:focus {
+  border-color: var(--border-focus);
+}
+
+/* Professional Typography */
+.pro-heading-xl {
+  @apply text-3xl font-bold tracking-tight;
+  color: var(--text-primary);
+}
+
+.pro-heading-lg {
+  @apply text-xl font-semibold;
+  color: var(--text-primary);
+}
+
+.pro-heading-md {
+  @apply text-lg font-medium;
+  color: var(--text-primary);
+}
+
+.pro-text-primary {
+  color: var(--text-primary);
+}
+
+.pro-text-secondary {
+  color: var(--text-secondary);
+}
+
+.pro-text-tertiary {
+  color: var(--text-tertiary);
+}
+
+/* Professional Layout */
+.pro-container {
+  @apply max-w-4xl mx-auto px-4 sm:px-6 lg:px-8;
+}
+
+.pro-header {
+  @apply sticky top-0 z-50 bg-white/90 backdrop-blur-xl border-b border-slate-200;
+  background-color: rgba(255, 255, 255, 0.9);
+  border-color: var(--border-primary);
+}
+
+[data-theme="dark"] .pro-header {
+  background-color: rgba(15, 23, 42, 0.9);
+}
+
+.pro-sidebar {
+  @apply fixed left-0 top-0 h-full w-64 bg-white border-r border-slate-200 transform transition-transform duration-200 ease-in-out;
+  background-color: var(--bg-card);
+  border-color: var(--border-primary);
+}
+
+/* Professional Animation */
+.pro-fade-in {
+  animation: proFadeIn 0.3s ease-out;
+}
+
+@keyframes proFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.pro-slide-up {
+  animation: proSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes proSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Professional Focus States */
+.pro-focus {
+  @apply focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2;
+}
+
+/* Professional Hover Effects */
+.pro-hover {
+  @apply hover:bg-slate-50 transition-colors duration-200;
+}
+
+.pro-hover:hover {
+  background-color: var(--bg-tertiary);
+}
+
+/* Professional Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: var(--border-secondary);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--text-tertiary);
+}
+
+/* Professional Status Indicators */
+.pro-status-online {
+  @apply inline-block w-2 h-2 bg-green-500 rounded-full;
+}
+
+.pro-status-offline {
+  @apply inline-block w-2 h-2 bg-slate-400 rounded-full;
+}
+
+.pro-status-warning {
+  @apply inline-block w-2 h-2 bg-yellow-500 rounded-full;
+}
+
+/* Professional Badges */
+.pro-badge {
+  @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+}
+
+.pro-badge-primary {
+  @apply pro-badge bg-blue-100 text-blue-800;
+}
+
+.pro-badge-success {
+  @apply pro-badge bg-green-100 text-green-800;
+}
+
+.pro-badge-warning {
+  @apply pro-badge bg-yellow-100 text-yellow-800;
+}
+
+.pro-badge-danger {
+  @apply pro-badge bg-red-100 text-red-800;
+}
+
 :root {
   font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;

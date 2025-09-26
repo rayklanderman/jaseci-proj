@@ -2,6 +2,11 @@ import React, { useState, useEffect } from "react";
 import autoSwitchingTaskService from "../services/autoSwitchingApi";
 import type { BackendStatus } from "../services/backendDetector";
 import type { Task, TaskListResponse } from "../types/api";
+import { TaskTemplates } from "./TaskTemplates";
+import { useTheme } from "../services/themeService";
+import { useSmartNotifications } from "../services/smartNotifications";
+import { SmartDateParser } from "../services/smartDateParser";
+import type { TaskTemplate } from "../services/taskTemplates";
 
 interface TaskItemProps {
   task: Task;
@@ -240,6 +245,16 @@ const TaskManager: React.FC = () => {
     null
   );
 
+  // New feature state
+  const [isTemplatesOpen, setIsTemplatesOpen] = useState(false);
+  const [selectedDate, setSelectedDate] = useState("");
+  const [selectedTime, setSelectedTime] = useState("");
+  const [showDateTimeInputs, setShowDateTimeInputs] = useState(false);
+
+  // Initialize services
+  const { theme, toggleTheme } = useTheme();
+  const { scheduleReminder } = useSmartNotifications();
+
   // Update backend status periodically
   useEffect(() => {
     const updateStatus = () => {
@@ -274,11 +289,48 @@ const TaskManager: React.FC = () => {
 
     setIsLoading(true);
     try {
+      // Parse smart dates from task description first
+      const parsedDate = SmartDateParser.parseFromText(newTaskDescription);
+      let taskDescription = newTaskDescription.trim();
+      let finalDueDate: Date | null = null;
+
+      // Check if explicit date/time was provided
+      if (selectedDate) {
+        // Combine selected date and time
+        const dateTime = selectedTime
+          ? `${selectedDate}T${selectedTime}`
+          : `${selectedDate}T09:00`; // Default to 9 AM if no time specified
+
+        finalDueDate = new Date(dateTime);
+        taskDescription = `${taskDescription} (due: ${finalDueDate.toLocaleDateString()} at ${finalDueDate.toLocaleTimeString(
+          [],
+          { hour: "2-digit", minute: "2-digit" }
+        )})`;
+      } else if (parsedDate?.date) {
+        // Use smart-parsed date if no explicit date provided
+        finalDueDate = parsedDate.date;
+        taskDescription = `${taskDescription} (due: ${finalDueDate.toLocaleDateString()})`;
+      }
+
       const response = await autoSwitchingTaskService.createTask(
-        newTaskDescription.trim()
+        taskDescription
       );
       if (response.success) {
         setNewTaskDescription("");
+        setSelectedDate("");
+        setSelectedTime("");
+        setShowDateTimeInputs(false);
+
+        // Schedule smart notifications for the new task if it has a due date
+        if (finalDueDate && response.task) {
+          scheduleReminder({
+            id: String(response.task.id),
+            description: response.task.description,
+            priority: response.task.priority,
+            dueDate: finalDueDate.toISOString(),
+          });
+        }
+
         await loadTasks();
       } else {
         setError(response.error || "Failed to create task");
@@ -322,6 +374,12 @@ const TaskManager: React.FC = () => {
     setIsLoading(false);
   };
 
+  // Handle template selection
+  const handleTemplateSelect = (template: TaskTemplate) => {
+    setNewTaskDescription(template.description);
+    setIsTemplatesOpen(false);
+  };
+
   useEffect(() => {
     loadTasks();
   }, []);
@@ -342,18 +400,29 @@ const TaskManager: React.FC = () => {
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center gap-4 mb-6">
-            <div className="p-3 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl shadow-xl">
-              <span className="text-2xl">🤖</span>
+          <div className="flex items-center justify-between mb-6">
+            <div className="inline-flex items-center gap-4">
+              <div className="p-3 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl shadow-xl">
+                <span className="text-2xl">🤖</span>
+              </div>
+              <div className="text-left">
+                <h1 className="text-4xl font-black bg-gradient-to-r from-slate-800 via-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                  AI Task Manager
+                </h1>
+                <p className="text-xl text-slate-600 mt-2 font-medium">
+                  Intelligent productivity with AI-powered insights
+                </p>
+              </div>
             </div>
-            <div className="text-left">
-              <h1 className="text-4xl font-black bg-gradient-to-r from-slate-800 via-indigo-600 to-purple-600 bg-clip-text text-transparent">
-                AI Task Manager
-              </h1>
-              <p className="text-xl text-slate-600 mt-2 font-medium">
-                Intelligent productivity with AI-powered insights
-              </p>
-            </div>
+
+            {/* Theme Toggle Button */}
+            <button
+              onClick={toggleTheme}
+              className="p-3 bg-white/70 backdrop-blur-xl border border-gray-200 rounded-xl shadow-lg hover:bg-white/90 transition-all duration-200"
+              title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+            >
+              <span className="text-xl">{theme === "dark" ? "☀️" : "🌙"}</span>
+            </button>
           </div>
         </div>
 
@@ -588,6 +657,81 @@ const TaskManager: React.FC = () => {
               </div>
             </div>
 
+            {/* Template Button */}
+            <div className="flex justify-center gap-2">
+              <button
+                type="button"
+                onClick={() => setIsTemplatesOpen(true)}
+                className="px-4 py-2 bg-white/70 backdrop-blur-sm border-2 border-indigo-200/50 text-indigo-600 rounded-xl hover:bg-indigo-50 transition-all duration-200 flex items-center gap-2"
+              >
+                <span className="text-sm">📋</span>
+                <span className="text-sm font-medium">Use Template</span>
+              </button>
+
+              {/* Date/Time Toggle Button */}
+              <button
+                type="button"
+                onClick={() => setShowDateTimeInputs(!showDateTimeInputs)}
+                className={`px-4 py-2 backdrop-blur-sm border-2 rounded-xl transition-all duration-200 flex items-center gap-2 ${
+                  showDateTimeInputs
+                    ? "bg-emerald-50 border-emerald-200 text-emerald-700"
+                    : "bg-white/70 border-slate-200/50 text-slate-600 hover:bg-slate-50"
+                }`}
+              >
+                <span className="text-sm">📅</span>
+                <span className="text-sm font-medium">Set Date & Time</span>
+              </button>
+            </div>
+
+            {/* Date/Time Inputs */}
+            {showDateTimeInputs && (
+              <div className="bg-white/80 backdrop-blur-sm border-2 border-slate-200/50 rounded-2xl p-6 shadow-lg">
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <div className="flex-1">
+                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                      📅 Due Date
+                    </label>
+                    <input
+                      type="date"
+                      value={selectedDate}
+                      onChange={(e) => setSelectedDate(e.target.value)}
+                      className="w-full px-4 py-3 bg-white/90 border-2 border-slate-200/50 rounded-xl focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all duration-300"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                      ⏰ Due Time (optional)
+                    </label>
+                    <input
+                      type="time"
+                      value={selectedTime}
+                      onChange={(e) => setSelectedTime(e.target.value)}
+                      className="w-full px-4 py-3 bg-white/90 border-2 border-slate-200/50 rounded-xl focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all duration-300"
+                    />
+                  </div>
+                  <div className="flex items-end">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedDate("");
+                        setSelectedTime("");
+                        setShowDateTimeInputs(false);
+                      }}
+                      className="px-4 py-3 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 transition-all duration-200 flex items-center gap-2"
+                    >
+                      <span className="text-sm">✕</span>
+                      <span className="text-sm font-medium">Clear</span>
+                    </button>
+                  </div>
+                </div>
+                <div className="mt-4 text-sm text-slate-500 bg-slate-50/50 rounded-xl p-3">
+                  💡 <strong>Tip:</strong> You can still use natural language
+                  like "tomorrow at 3pm" in the task description, or use these
+                  fields for precise date/time control.
+                </div>
+              </div>
+            )}
+
             <button
               type="submit"
               disabled={isLoading || !newTaskDescription.trim()}
@@ -705,6 +849,15 @@ const TaskManager: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Task Templates Modal */}
+      {isTemplatesOpen && (
+        <TaskTemplates
+          isOpen={isTemplatesOpen}
+          onSelectTemplate={handleTemplateSelect}
+          onClose={() => setIsTemplatesOpen(false)}
+        />
+      )}
     </div>
   );
 };
