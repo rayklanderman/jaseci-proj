@@ -75,8 +75,8 @@ export const backendTaskService = {
       const response = await apiCall<any>("/tasks");
 
       const tasks = response.tasks.map(convertBackendTask);
-      const pendingTasks = tasks.filter((t) => !t.completed);
-      const completedTasks = tasks.filter((t) => t.completed);
+      const pendingTasks = tasks.filter((t: Task) => !t.completed);
+      const completedTasks = tasks.filter((t: Task) => t.completed);
 
       // Generate AI insight based on completion rate
       let aiInsight = "📊 Task analysis in progress...";

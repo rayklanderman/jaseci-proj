@@ -13,14 +13,10 @@ import backendTaskService from "./backendApi";
 import { taskService as localTaskService } from "./api";
 
 class AutoSwitchingTaskService {
-  private backendStatus: BackendStatus;
-
   constructor() {
-    this.backendStatus = backendDetector.getStatus();
-
-    // Update status when backend changes
+    // Auto-update backend detection in the background
     setInterval(() => {
-      this.backendStatus = backendDetector.getStatus();
+      backendDetector.getStatus();
     }, 1000);
   }
 

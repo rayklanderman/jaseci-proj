@@ -62,6 +62,12 @@ export interface HealthCheckResponse {
   service: string;
   version: string;
   features: string[];
+  backend_info?: {
+    ai_available: boolean;
+    tasks_count: number;
+    timestamp: string;
+  };
+  error?: string;
 }
 
 export interface ServiceInfoResponse {
@@ -69,4 +75,6 @@ export interface ServiceInfoResponse {
   description: string;
   endpoints: Record<string, string>;
   ai_features: Record<string, string>;
+  status?: string;
+  error?: string;
 }
