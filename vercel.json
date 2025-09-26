@@ -1,0 +1,38 @@
+{
+  "version": 2,
+  "name": "ai-task-manager",
+  "buildCommand": "cd ai-task-manager/frontend && yarn build",
+  "outputDirectory": "ai-task-manager/frontend/dist",
+  "installCommand": "cd ai-task-manager/frontend && yarn install",
+  "framework": null,
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/service-worker.js",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, must-revalidate"
+        },
+        {
+          "key": "Service-Worker-Allowed",
+          "value": "/"
+        }
+      ]
+    },
+    {
+      "source": "/manifest.json",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/manifest+json"
+        }
+      ]
+    }
+  ]
+}
