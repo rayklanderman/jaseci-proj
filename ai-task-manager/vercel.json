@@ -23,8 +23,6 @@
       "dest": "frontend/dist/$1"
     }
   ],
-  "buildCommand": "cd frontend && yarn install && yarn build",
-  "installCommand": "cd frontend && yarn install",
   "env": {
     "GEMINI_API_KEY": "@gemini_api_key"
   }
