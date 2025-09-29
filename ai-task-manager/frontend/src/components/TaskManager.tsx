@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import autoSwitchingTaskService from "../services/autoSwitchingApi";
 import type { BackendStatus } from "../services/backendDetector";
 import type { Task, TaskId, TaskListResponse } from "../types/api";
@@ -7,6 +7,10 @@ import { useTheme } from "../services/themeService";
 import { useSmartNotifications } from "../services/smartNotifications";
 import { SmartDateParser } from "../services/smartDateParser";
 import type { TaskTemplate } from "../services/taskTemplates";
+import {
+  CustomTemplateService,
+  TaskTemplateService,
+} from "../services/taskTemplates";
 
 interface TaskItemProps {
   task: Task;
@@ -255,6 +259,13 @@ const TaskManager: React.FC = () => {
   const { theme, toggleTheme } = useTheme();
   const { scheduleReminder } = useSmartNotifications();
 
+  const featuredTemplates = useMemo(() => {
+    const builtIns = TaskTemplateService.getTemplates();
+    const customs = CustomTemplateService.getCustomTemplates();
+
+    return [...customs, ...builtIns].slice(0, 8);
+  }, []);
+
   // Update backend status periodically
   useEffect(() => {
     const updateStatus = () => {
@@ -376,7 +387,11 @@ const TaskManager: React.FC = () => {
 
   // Handle template selection
   const handleTemplateSelect = (template: TaskTemplate) => {
-    setNewTaskDescription(template.description);
+    const draft = `${template.icon} ${template.name} — ${template.description}`;
+    setNewTaskDescription(draft.trim());
+    setSelectedDate("");
+    setSelectedTime("");
+    setShowDateTimeInputs(false);
     setIsTemplatesOpen(false);
   };
 
@@ -444,8 +459,8 @@ const TaskManager: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex flex-col items-stretch gap-6">
-            <div className="flex items-center justify-end">
+          <div className="flex flex-col gap-6">
+            <div className="flex justify-end">
               <button
                 onClick={toggleTheme}
                 className="flex items-center gap-3 rounded-full border border-white/50 bg-white/80 px-4 py-2 text-sm font-medium text-slate-700 shadow-sm backdrop-blur transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-md"
@@ -458,474 +473,433 @@ const TaskManager: React.FC = () => {
               </button>
             </div>
 
-            <div className="relative overflow-hidden rounded-3xl border border-white/60 bg-white/75 p-6 shadow-card backdrop-blur">
-              <div className="flex items-start justify-between">
+            <div className="relative overflow-hidden rounded-4xl border border-white/60 bg-white/85 p-8 shadow-card backdrop-blur">
+              <div className="flex items-start justify-between gap-4">
                 <div>
-                  <p className="text-sm uppercase tracking-[0.18em] text-slate-400">
-                    Next steps
+                  <p className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">
+                    Quick add
                   </p>
-                  <p className="mt-2 text-lg font-semibold text-slate-900">
-                    Add tasks or import a curated template to get started.
+                  <h2 className="mt-2 text-2xl font-semibold text-slate-900">
+                    Capture your next task instantly
+                  </h2>
+                  <p className="mt-2 text-sm text-slate-500">
+                    AI-enriched categorisation happens as soon as you save, so
+                    you can stay in flow.
                   </p>
                 </div>
-                <svg
-                  className="h-12 w-12 text-brand-500"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M13 7l5 5m0 0l-5 5m5-5H6"
-                  />
-                </svg>
+                <span className="grid h-12 w-12 place-items-center rounded-3xl bg-brand-500/10 text-2xl text-brand-600">
+                  ⚡
+                </span>
               </div>
+
+              <form onSubmit={createTask} className="mt-6 space-y-5">
+                <div className="space-y-2">
+                  <label
+                    className="text-sm font-semibold text-slate-600"
+                    htmlFor="task-entry"
+                  >
+                    Task summary
+                  </label>
+                  <div className="relative">
+                    <input
+                      id="task-entry"
+                      type="text"
+                      value={newTaskDescription}
+                      onChange={(e) => setNewTaskDescription(e.target.value)}
+                      placeholder="Describe your task... AI will automatically categorise it ✨"
+                      className="w-full rounded-2xl border-2 border-slate-200/60 bg-white/90 px-5 py-4 text-base shadow-inner transition-all duration-300 placeholder:text-slate-400 focus:border-brand-400 focus:ring-4 focus:ring-brand-500/10 disabled:opacity-60"
+                      disabled={isLoading}
+                    />
+                    <div className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-300">
+                      <svg
+                        className="h-5 w-5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M13 10V3L4 14h7v7l9-11h-7z"
+                        />
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowDateTimeInputs(!showDateTimeInputs)}
+                    className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition-all duration-200 ${
+                      showDateTimeInputs
+                        ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                        : "border-slate-200/70 bg-white/90 text-slate-600 hover:border-brand-200 hover:text-brand-600"
+                    }`}
+                  >
+                    <span>📅</span>
+                    <span>Schedule</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setIsTemplatesOpen(true)}
+                    className="inline-flex items-center gap-2 rounded-full border border-indigo-200/70 bg-white/90 px-4 py-2 text-sm font-medium text-indigo-600 transition-all duration-200 hover:border-brand-300 hover:bg-brand-50/40"
+                  >
+                    <span>📋</span>
+                    <span>Browse templates</span>
+                  </button>
+                </div>
+
+                {showDateTimeInputs && (
+                  <div className="rounded-2xl border border-slate-200/70 bg-white/95 p-5 shadow-sm">
+                    <div className="flex flex-col gap-4 sm:flex-row">
+                      <div className="flex-1">
+                        <label className="block text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                          Due date
+                        </label>
+                        <input
+                          type="date"
+                          value={selectedDate}
+                          onChange={(e) => setSelectedDate(e.target.value)}
+                          aria-label="Task due date"
+                          className="mt-2 w-full rounded-xl border border-slate-200/70 bg-white px-3 py-3 text-sm shadow-inner transition-all duration-300 focus:border-brand-400 focus:ring-2 focus:ring-brand-300/40"
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <label className="block text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                          Due time (optional)
+                        </label>
+                        <input
+                          type="time"
+                          value={selectedTime}
+                          onChange={(e) => setSelectedTime(e.target.value)}
+                          aria-label="Task due time"
+                          className="mt-2 w-full rounded-xl border border-slate-200/70 bg-white px-3 py-3 text-sm shadow-inner transition-all duration-300 focus:border-brand-400 focus:ring-2 focus:ring-brand-300/40"
+                        />
+                      </div>
+                      <div className="flex items-end">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedDate("");
+                            setSelectedTime("");
+                            setShowDateTimeInputs(false);
+                          }}
+                          className="inline-flex items-center gap-2 rounded-xl border border-slate-200/60 bg-slate-100 px-4 py-3 text-sm font-medium text-slate-600 transition-all duration-200 hover:bg-slate-200"
+                        >
+                          <span>✕</span>
+                          <span>Clear</span>
+                        </button>
+                      </div>
+                    </div>
+                    <p className="mt-4 rounded-xl bg-slate-50/80 px-4 py-2 text-xs text-slate-500">
+                      💡 Tip: you can still drop phrases like "tomorrow at 3pm"
+                      directly in the task summary.
+                    </p>
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={isLoading || !newTaskDescription.trim()}
+                  className="inline-flex w-full items-center justify-center gap-3 rounded-2xl bg-gradient-to-r from-brand-500 to-indigo-600 px-6 py-3 text-base font-semibold text-white shadow-lg transition-all duration-300 hover:from-brand-600 hover:to-indigo-700 hover:shadow-brand disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {isLoading ? (
+                    <>
+                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <svg
+                        className="h-5 w-5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M12 4v16m8-8H4"
+                        />
+                      </svg>
+                      Add task
+                    </>
+                  )}
+                </button>
+              </form>
+
+              {featuredTemplates.length > 0 && (
+                <div className="mt-8">
+                  <div className="flex items-center justify-between gap-4">
+                    <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">
+                      Featured templates
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setIsTemplatesOpen(true)}
+                      className="text-sm font-medium text-brand-600 hover:text-brand-500"
+                    >
+                      View all
+                    </button>
+                  </div>
+                  <div className="-mx-2 mt-4 flex snap-x snap-mandatory gap-4 overflow-x-auto pb-2 px-2">
+                    {featuredTemplates.map((template) => (
+                      <button
+                        key={template.id}
+                        type="button"
+                        onClick={() => handleTemplateSelect(template)}
+                        className="group relative min-w-[220px] snap-start rounded-3xl border border-white/60 bg-white/80 p-4 text-left shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-brand-400 hover:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <span className="grid h-9 w-9 place-items-center rounded-xl bg-brand-500/10 text-lg">
+                            {template.icon}
+                          </span>
+                          <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-medium text-slate-500">
+                            {template.priority}
+                          </span>
+                        </div>
+                        <p className="mt-4 text-sm font-semibold text-slate-800 group-hover:text-brand-600">
+                          {template.name}
+                        </p>
+                        <p className="mt-2 text-xs text-slate-500 line-clamp-2">
+                          {template.description}
+                        </p>
+                        {template.estimatedTime && (
+                          <p className="mt-3 text-xs font-medium text-slate-400">
+                            ⏱ {template.estimatedTime}
+                          </p>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </header>
 
-        <section className="rounded-4xl border border-white/60 bg-white/80 p-6 shadow-card backdrop-blur">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="flex items-center gap-4">
-              <span className="grid h-11 w-11 place-items-center rounded-2xl bg-brand-500/10 text-2xl">
-                🧠
-              </span>
-              <div>
-                <p className="text-sm font-semibold text-slate-700">
-                  AI-enhanced scheduling
-                </p>
-                <p className="text-sm text-slate-500">
-                  Smart Date Parser now respects natural phrases with adaptive
-                  confidence.
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-4">
-              <span className="grid h-11 w-11 place-items-center rounded-2xl bg-emerald-500/10 text-2xl">
-                🌐
-              </span>
-              <div>
-                <p className="text-sm font-semibold text-slate-700">
-                  Deploy-ready service worker
-                </p>
-                <p className="text-sm text-slate-500">
-                  Caches Vite assets safely while bypassing live API responses.
-                </p>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Backend Status Indicator */}
-        {backendStatus && (
-          <div className="max-w-2xl mx-auto mb-8">
-            <div
-              className={`bg-white/70 backdrop-blur-xl border rounded-2xl px-6 py-4 shadow-lg transition-all duration-300 ${
-                backendStatus.isAvailable
-                  ? "border-green-200 bg-gradient-to-r from-green-50 to-emerald-50"
-                  : "border-blue-200 bg-gradient-to-r from-blue-50 to-cyan-50"
-              }`}
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div
-                    className={`p-2 rounded-xl ${
-                      backendStatus.isAvailable
-                        ? "bg-green-500 text-white"
-                        : "bg-blue-500 text-white"
-                    }`}
-                  >
-                    <span className="text-sm">
-                      {backendStatus.isAvailable ? "🚀" : "📱"}
-                    </span>
-                  </div>
-                  <div>
-                    <p className="font-semibold text-slate-800">
-                      {backendStatus.isAvailable
-                        ? "Jac AI Backend Active"
-                        : "Local Mode Active"}
-                    </p>
-                    <p className="text-sm text-slate-600">
-                      {backendStatus.isAvailable
-                        ? `Real AI processing • v${backendStatus.version}`
-                        : "Pattern matching • Browser storage"}
-                    </p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div
-                    className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${
-                      backendStatus.isAvailable
-                        ? "bg-green-100 text-green-700"
-                        : "bg-blue-100 text-blue-700"
-                    }`}
-                  >
-                    <div
-                      className={`w-2 h-2 rounded-full ${
-                        backendStatus.isAvailable
-                          ? "bg-green-500"
-                          : "bg-blue-500"
-                      }`}
-                    ></div>
-                    {backendStatus.mode.replace("-", " ").toUpperCase()}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Stats Dashboard */}
-        {tasks && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-            <div className="bg-white/70 backdrop-blur-xl border border-white/20 p-8 rounded-3xl shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105">
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl text-white shadow-lg">
-                  <svg
-                    className="w-6 h-6"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                    />
-                  </svg>
-                </div>
-                <div>
-                  <div className="text-3xl font-black text-blue-600">
-                    {tasks.data.stats.total_pending}
-                  </div>
-                  <div className="text-sm font-medium text-slate-600">
-                    Pending Tasks
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white/70 backdrop-blur-xl border border-white/20 p-8 rounded-3xl shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105">
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl text-white shadow-lg">
-                  <svg
-                    className="w-6 h-6"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M5 13l4 4L19 7"
-                    />
-                  </svg>
-                </div>
-                <div>
-                  <div className="text-3xl font-black text-emerald-600">
-                    {tasks.data.stats.total_completed}
-                  </div>
-                  <div className="text-sm font-medium text-slate-600">
-                    Completed
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white/70 backdrop-blur-xl border border-white/20 p-8 rounded-3xl shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105">
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-gradient-to-br from-violet-500 to-violet-600 rounded-xl text-white shadow-lg">
-                  <svg
-                    className="w-6 h-6"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-                    />
-                  </svg>
-                </div>
-                <div>
-                  <div className="text-3xl font-black text-violet-600">
-                    {getCompletionRate()}%
-                  </div>
-                  <div className="text-sm font-medium text-slate-600">
-                    Success Rate
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* AI Insight */}
-        {tasks?.data.ai_insight && (
-          <div className="relative mb-12">
-            <div className="bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-pink-500/10 backdrop-blur-xl border border-white/20 rounded-3xl p-8 shadow-xl">
-              <div className="flex items-start gap-6">
-                <div className="p-4 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl text-white shadow-lg flex-shrink-0">
-                  <svg
-                    className="w-7 h-7"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
-                    />
-                  </svg>
-                </div>
-                <div className="flex-1">
-                  <h3 className="text-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-3">
-                    AI Productivity Insight
-                  </h3>
-                  <p className="text-lg text-slate-700 font-medium leading-relaxed">
-                    {tasks.data.ai_insight}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Create Task Form */}
-        <div className="bg-white/70 backdrop-blur-xl border border-white/20 rounded-3xl shadow-xl p-8 mb-12">
-          <div className="flex items-center gap-4 mb-6">
-            <div className="p-3 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl text-white shadow-lg">
-              <svg
-                className="w-6 h-6"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 4v16m8-8H4"
-                />
-              </svg>
-            </div>
-            <h2 className="text-2xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">
-              Create New Task
-            </h2>
-          </div>
-
-          <form onSubmit={createTask} className="space-y-4">
-            <div className="relative">
-              <input
-                type="text"
-                value={newTaskDescription}
-                onChange={(e) => setNewTaskDescription(e.target.value)}
-                placeholder="Describe your task... AI will automatically categorize it ✨"
-                className="w-full px-6 py-4 text-lg bg-white/90 backdrop-blur-sm border-2 border-slate-200/50 rounded-2xl focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all duration-300 placeholder-slate-400 shadow-lg hover:shadow-xl"
-                disabled={isLoading}
-              />
-              <div className="absolute right-4 top-1/2 transform -translate-y-1/2 text-slate-400">
-                <svg
-                  className="w-5 h-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M13 10V3L4 14h7v7l9-11h-7z"
-                  />
-                </svg>
-              </div>
-            </div>
-
-            {/* Template Button */}
-            <div className="flex justify-center gap-2">
-              <button
-                type="button"
-                onClick={() => setIsTemplatesOpen(true)}
-                className="px-4 py-2 bg-white/70 backdrop-blur-sm border-2 border-indigo-200/50 text-indigo-600 rounded-xl hover:bg-indigo-50 transition-all duration-200 flex items-center gap-2"
-              >
-                <span className="text-sm">📋</span>
-                <span className="text-sm font-medium">Use Template</span>
-              </button>
-
-              {/* Date/Time Toggle Button */}
-              <button
-                type="button"
-                onClick={() => setShowDateTimeInputs(!showDateTimeInputs)}
-                className={`px-4 py-2 backdrop-blur-sm border-2 rounded-xl transition-all duration-200 flex items-center gap-2 ${
-                  showDateTimeInputs
-                    ? "bg-emerald-50 border-emerald-200 text-emerald-700"
-                    : "bg-white/70 border-slate-200/50 text-slate-600 hover:bg-slate-50"
+        <section className="grid gap-8 lg:grid-cols-[minmax(0,1.45fr)_minmax(0,0.75fr)]">
+          <div className="space-y-6">
+            {backendStatus && (
+              <div
+                className={`rounded-3xl border border-white/60 px-6 py-5 shadow-card backdrop-blur ${
+                  backendStatus.isAvailable
+                    ? "bg-emerald-50/80"
+                    : "bg-sky-50/80"
                 }`}
               >
-                <span className="text-sm">📅</span>
-                <span className="text-sm font-medium">Set Date & Time</span>
-              </button>
-            </div>
-
-            {/* Date/Time Inputs */}
-            {showDateTimeInputs && (
-              <div className="bg-white/80 backdrop-blur-sm border-2 border-slate-200/50 rounded-2xl p-6 shadow-lg">
-                <div className="flex flex-col sm:flex-row gap-4">
-                  <div className="flex-1">
-                    <label className="block text-sm font-medium text-slate-700 mb-2">
-                      📅 Due Date
-                    </label>
-                    <input
-                      type="date"
-                      value={selectedDate}
-                      onChange={(e) => setSelectedDate(e.target.value)}
-                      aria-label="Task due date"
-                      className="w-full px-4 py-3 bg-white/90 border-2 border-slate-200/50 rounded-xl focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all duration-300"
-                    />
-                  </div>
-                  <div className="flex-1">
-                    <label className="block text-sm font-medium text-slate-700 mb-2">
-                      ⏰ Due Time (optional)
-                    </label>
-                    <input
-                      type="time"
-                      value={selectedTime}
-                      onChange={(e) => setSelectedTime(e.target.value)}
-                      aria-label="Task due time"
-                      className="w-full px-4 py-3 bg-white/90 border-2 border-slate-200/50 rounded-xl focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all duration-300"
-                    />
-                  </div>
-                  <div className="flex items-end">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSelectedDate("");
-                        setSelectedTime("");
-                        setShowDateTimeInputs(false);
-                      }}
-                      className="px-4 py-3 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 transition-all duration-200 flex items-center gap-2"
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <span
+                      className={`grid h-10 w-10 place-items-center rounded-2xl text-lg text-white ${
+                        backendStatus.isAvailable
+                          ? "bg-emerald-500"
+                          : "bg-sky-500"
+                      }`}
                     >
-                      <span className="text-sm">✕</span>
-                      <span className="text-sm font-medium">Clear</span>
-                    </button>
+                      {backendStatus.isAvailable ? "🚀" : "📱"}
+                    </span>
+                    <div>
+                      <p className="text-sm font-semibold text-slate-800">
+                        {backendStatus.isAvailable
+                          ? "Jac AI backend active"
+                          : "Local intelligent mode"}
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        {backendStatus.isAvailable
+                          ? `Version ${backendStatus.version} • real-time enrichment`
+                          : "Pattern analysis with offline persistence"}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-end gap-2 text-xs font-medium uppercase tracking-[0.2em] text-slate-500">
+                    <span className="inline-flex items-center gap-2 rounded-full bg-white/60 px-3 py-1 text-[0.7rem] text-slate-600">
+                      <span
+                        className={`h-2 w-2 rounded-full ${
+                          backendStatus.isAvailable
+                            ? "bg-emerald-500"
+                            : "bg-sky-500"
+                        }`}
+                      ></span>
+                      {backendStatus.mode.replace("-", " ")}
+                    </span>
+                    {backendStatus.tasks_count !== undefined && (
+                      <span>{backendStatus.tasks_count} tasks synced</span>
+                    )}
                   </div>
                 </div>
-                <div className="mt-4 text-sm text-slate-500 bg-slate-50/50 rounded-xl p-3">
-                  💡 <strong>Tip:</strong> You can still use natural language
-                  like "tomorrow at 3pm" in the task description, or use these
-                  fields for precise date/time control.
+              </div>
+            )}
+
+            {error && (
+              <div className="rounded-3xl border border-red-100 bg-red-50/90 px-6 py-5 shadow-sm">
+                <div className="flex items-start gap-3">
+                  <span className="grid h-8 w-8 place-items-center rounded-xl bg-red-500 text-white">
+                    ⚠️
+                  </span>
+                  <div>
+                    <p className="text-sm font-semibold text-red-700">
+                      Something went wrong
+                    </p>
+                    <p className="text-sm text-red-600">{error}</p>
+                  </div>
                 </div>
               </div>
             )}
 
-            <button
-              type="submit"
-              disabled={isLoading || !newTaskDescription.trim()}
-              className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-indigo-500 to-purple-600 text-white text-lg font-semibold rounded-2xl hover:from-indigo-600 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105 transition-all duration-300 shadow-xl hover:shadow-2xl disabled:hover:scale-100"
-            >
-              {isLoading ? (
-                <div className="flex items-center gap-3">
-                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                  Creating...
-                </div>
-              ) : (
-                <div className="flex items-center gap-3">
-                  <svg
-                    className="w-5 h-5"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M12 4v16m8-8H4"
-                    />
-                  </svg>
-                  Add Task
-                </div>
-              )}
-            </button>
-          </form>
-        </div>
+            {isLoading && !tasks && (
+              <div className="flex flex-col items-center justify-center rounded-3xl border border-white/60 bg-white/85 px-6 py-16 text-center shadow-card">
+                <span className="h-12 w-12 animate-spin rounded-full border-4 border-brand-200 border-t-brand-500"></span>
+                <p className="mt-4 text-sm font-medium text-slate-600">
+                  Warming up your AI workspace...
+                </p>
+              </div>
+            )}
 
-        {/* Error Display */}
-        {error && (
-          <div className="bg-red-50/80 backdrop-blur-xl border-2 border-red-200 rounded-2xl p-6 mb-8 shadow-lg">
-            <div className="flex items-start gap-4">
-              <div className="p-2 bg-red-500 text-white rounded-xl flex-shrink-0">
-                <svg
-                  className="w-5 h-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"
+            {tasks && (
+              <div className="space-y-8">
+                <TaskList
+                  tasks={tasks.data.pending_tasks}
+                  onComplete={completeTask}
+                  onDelete={deleteTask}
+                  title="Pending Tasks"
+                  emptyMessage="🎉 All caught up! No pending tasks."
+                  icon="🔄"
+                />
+
+                {tasks.data.completed_tasks.length > 0 && (
+                  <TaskList
+                    tasks={tasks.data.completed_tasks}
+                    onComplete={completeTask}
+                    onDelete={deleteTask}
+                    title="Completed Tasks"
+                    emptyMessage="No completed tasks yet."
+                    icon="✅"
                   />
-                </svg>
+                )}
               </div>
-              <div>
-                <h3 className="text-lg font-semibold text-red-800 mb-1">
-                  Something went wrong
-                </h3>
-                <p className="text-red-700">{error}</p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Loading State */}
-        {isLoading && !tasks && (
-          <div className="text-center py-24">
-            <div className="relative">
-              <div className="w-16 h-16 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mx-auto mb-6"></div>
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="w-8 h-8 bg-indigo-600 rounded-full animate-pulse"></div>
-              </div>
-            </div>
-            <p className="text-xl text-slate-600 font-medium">
-              Loading your intelligent workspace...
-            </p>
-          </div>
-        )}
-
-        {/* Task Lists */}
-        {tasks && (
-          <div className="space-y-8">
-            <TaskList
-              tasks={tasks.data.pending_tasks}
-              onComplete={completeTask}
-              onDelete={deleteTask}
-              title="Pending Tasks"
-              emptyMessage="🎉 All caught up! No pending tasks."
-              icon="🔄"
-            />
-
-            {tasks.data.completed_tasks.length > 0 && (
-              <TaskList
-                tasks={tasks.data.completed_tasks}
-                onComplete={completeTask}
-                onDelete={deleteTask}
-                title="Completed Tasks"
-                emptyMessage="No completed tasks yet."
-                icon="✅"
-              />
             )}
           </div>
-        )}
+
+          <aside className="space-y-6">
+            {tasks && (
+              <div className="rounded-3xl border border-white/60 bg-white/85 p-6 shadow-card backdrop-blur">
+                <p className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">
+                  Snapshot
+                </p>
+                <div className="mt-4 space-y-4">
+                  <div className="flex items-center justify-between rounded-2xl border border-slate-200/60 bg-white/95 px-4 py-3 shadow-sm">
+                    <div className="flex items-center gap-3">
+                      <span className="grid h-10 w-10 place-items-center rounded-2xl bg-blue-500/10 text-xl text-blue-600">
+                        ⏳
+                      </span>
+                      <div>
+                        <p className="text-sm font-semibold text-slate-700">
+                          Pending
+                        </p>
+                        <p className="text-xs text-slate-500">
+                          In progress now
+                        </p>
+                      </div>
+                    </div>
+                    <span className="text-2xl font-bold text-slate-900">
+                      {tasks.data.stats.total_pending}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between rounded-2xl border border-slate-200/60 bg-white/95 px-4 py-3 shadow-sm">
+                    <div className="flex items-center gap-3">
+                      <span className="grid h-10 w-10 place-items-center rounded-2xl bg-emerald-500/10 text-xl text-emerald-600">
+                        ✅
+                      </span>
+                      <div>
+                        <p className="text-sm font-semibold text-slate-700">
+                          Completed
+                        </p>
+                        <p className="text-xs text-slate-500">
+                          Wins this cycle
+                        </p>
+                      </div>
+                    </div>
+                    <span className="text-2xl font-bold text-slate-900">
+                      {tasks.data.stats.total_completed}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between rounded-2xl border border-slate-200/60 bg-white/95 px-4 py-3 shadow-sm">
+                    <div className="flex items-center gap-3">
+                      <span className="grid h-10 w-10 place-items-center rounded-2xl bg-violet-500/10 text-xl text-violet-600">
+                        📈
+                      </span>
+                      <div>
+                        <p className="text-sm font-semibold text-slate-700">
+                          Completion rate
+                        </p>
+                        <p className="text-xs text-slate-500">
+                          7-day rolling trend
+                        </p>
+                      </div>
+                    </div>
+                    <span className="text-2xl font-bold text-slate-900">
+                      {getCompletionRate()}%
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {tasks?.data.ai_insight && (
+              <div className="rounded-3xl border border-white/60 bg-gradient-to-br from-indigo-500/12 via-purple-500/12 to-pink-500/12 p-6 shadow-card backdrop-blur">
+                <div className="flex items-start gap-3">
+                  <span className="grid h-10 w-10 place-items-center rounded-2xl bg-brand-500 text-white">
+                    💡
+                  </span>
+                  <div>
+                    <p className="text-sm font-semibold text-slate-700">
+                      AI productivity insight
+                    </p>
+                    <p className="mt-2 text-sm text-slate-600">
+                      {tasks.data.ai_insight}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="rounded-3xl border border-white/60 bg-white/85 p-6 shadow-card backdrop-blur">
+              <p className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">
+                Workspace advantages
+              </p>
+              <ul className="mt-4 space-y-4 text-sm text-slate-600">
+                <li className="flex items-start gap-3">
+                  <span className="mt-0.5 text-brand-500">•</span>
+                  <span>
+                    Offline-first architecture with local storage fallback and
+                    smart sync once the Jac backend is back online.
+                  </span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="mt-0.5 text-brand-500">•</span>
+                  <span>
+                    Service worker covers the Vite asset pipeline and keeps API
+                    traffic live, preventing stale responses.
+                  </span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="mt-0.5 text-brand-500">•</span>
+                  <span>
+                    Featured templates and AI parsing reduce manual entry so
+                    teams can log tasks in seconds.
+                  </span>
+                </li>
+              </ul>
+            </div>
+          </aside>
+        </section>
 
         {/* Footer */}
         <div className="text-center mt-20 pb-8">
