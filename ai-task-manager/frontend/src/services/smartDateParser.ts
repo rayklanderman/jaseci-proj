@@ -9,7 +9,9 @@ export interface ParsedDate {
 }
 
 export class SmartDateParser {
-  private static readonly TODAY = new Date();
+  private static now(): Date {
+    return new Date();
+  }
 
   // Time keywords
   private static readonly TIME_PATTERNS = {
@@ -83,7 +85,8 @@ export class SmartDateParser {
   private static parseRelativeDays(text: string): ParsedDate | null {
     for (const [keyword, days] of Object.entries(this.DAY_PATTERNS)) {
       if (text.includes(keyword)) {
-        const date = new Date(this.TODAY);
+        const base = this.now();
+        const date = new Date(base.getTime());
         date.setDate(date.getDate() + days);
 
         return {
@@ -102,7 +105,7 @@ export class SmartDateParser {
       const weekday = this.WEEKDAYS[i];
 
       if (text.includes(weekday)) {
-        const today = this.TODAY.getDay();
+        const today = this.now().getDay();
         const targetDay = i;
         let daysUntil = targetDay - today;
 
@@ -111,7 +114,8 @@ export class SmartDateParser {
           daysUntil += 7;
         }
 
-        const date = new Date(this.TODAY);
+        const base = this.now();
+        const date = new Date(base.getTime());
         date.setDate(date.getDate() + daysUntil);
 
         // Check for "next [weekday]" pattern
@@ -135,11 +139,12 @@ export class SmartDateParser {
     // Look for time keywords
     for (const [timeKeyword, hour] of Object.entries(this.TIME_PATTERNS)) {
       if (text.includes(timeKeyword)) {
-        const date = new Date(this.TODAY);
+        const base = this.now();
+        const date = new Date(base.getTime());
         date.setHours(hour, 0, 0, 0);
 
         // If time has passed today, set for tomorrow
-        if (date < this.TODAY) {
+        if (date < base) {
           date.setDate(date.getDate() + 1);
         }
 
@@ -165,7 +170,8 @@ export class SmartDateParser {
       const match = text.match(pattern);
       if (match) {
         const days = parseInt(match[1]);
-        const date = new Date(this.TODAY);
+        const base = this.now();
+        const date = new Date(base.getTime());
         date.setDate(date.getDate() + days);
 
         return {
@@ -197,21 +203,17 @@ export class SmartDateParser {
             // Date format MM/DD or MM/DD/YYYY
             const month = parseInt(match[1]) - 1;
             const day = parseInt(match[2]);
-            const year = match[3]
-              ? parseInt(match[3])
-              : this.TODAY.getFullYear();
+            const base = this.now();
+            const year = match[3] ? parseInt(match[3]) : base.getFullYear();
             date = new Date(year, month, day);
           } else {
             // Day of month (e.g., "15th")
+            const base = this.now();
             const day = parseInt(match[1]);
-            date = new Date(
-              this.TODAY.getFullYear(),
-              this.TODAY.getMonth(),
-              day
-            );
+            date = new Date(base.getFullYear(), base.getMonth(), day);
 
             // If date has passed this month, set for next month
-            if (date < this.TODAY) {
+            if (date < base) {
               date.setMonth(date.getMonth() + 1);
             }
           }
@@ -240,10 +242,11 @@ export class SmartDateParser {
         const dayMatch = text.match(/(\d{1,2})(?:st|nd|rd|th)?/);
         if (dayMatch) {
           const day = parseInt(dayMatch[1]);
-          const date = new Date(this.TODAY.getFullYear(), i, day);
+          const base = this.now();
+          const date = new Date(base.getFullYear(), i, day);
 
           // If date has passed this year, set for next year
-          if (date < this.TODAY) {
+          if (date < base) {
             date.setFullYear(date.getFullYear() + 1);
           }
 

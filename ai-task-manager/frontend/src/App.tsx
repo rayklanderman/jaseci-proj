@@ -1,10 +1,10 @@
-import TaskManagerPro from "./components/TaskManagerPro";
+import TaskManager from "./components/TaskManager";
 import "./App.css";
 
 function App() {
   return (
     <div className="App">
-      <TaskManagerPro />
+      <TaskManager />
     </div>
   );
 }

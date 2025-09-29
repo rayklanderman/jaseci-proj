@@ -84,3 +84,4 @@ ai-task-manager/frontend/.env.local
 ai-task-manager/frontend/.env.production
 ai-task-manager/frontend/yarn-error.log
 .vercel
+ai-task-frontend-deploy/

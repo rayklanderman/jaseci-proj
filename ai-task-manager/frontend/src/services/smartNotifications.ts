@@ -1,8 +1,10 @@
 // Smart Notifications Service
 // Integrates with the existing service worker for task reminders
 
-export interface NotificationOptions {
-  taskId: string | number;
+import type { TaskId } from "../types/api";
+
+export interface TaskReminderOptions {
+  taskId: TaskId;
   title: string;
   description: string;
   priority: "High" | "Medium" | "Low";
@@ -54,7 +56,7 @@ export class SmartNotificationService {
     return permission === "granted";
   }
 
-  async scheduleTaskReminder(options: NotificationOptions): Promise<void> {
+  async scheduleTaskReminder(options: TaskReminderOptions): Promise<void> {
     const hasPermission = await this.requestPermission();
     if (!hasPermission) {
       console.warn("Notification permission denied");
@@ -104,7 +106,7 @@ export class SmartNotificationService {
   }
 
   private async showImmediateNotification(
-    options: NotificationOptions
+    options: TaskReminderOptions
   ): Promise<void> {
     const registration = await this.registrationPromise;
 
@@ -142,7 +144,7 @@ export class SmartNotificationService {
     }
   }
 
-  async scheduleMultipleReminders(tasks: NotificationOptions[]): Promise<void> {
+  async scheduleMultipleReminders(tasks: TaskReminderOptions[]): Promise<void> {
     const hasPermission = await this.requestPermission();
     if (!hasPermission) return;
 
@@ -154,7 +156,7 @@ export class SmartNotificationService {
   }
 
   // Cancel notifications for completed tasks
-  async cancelTaskNotification(taskId: number): Promise<void> {
+  async cancelTaskNotification(taskId: TaskId): Promise<void> {
     const registration = await this.registrationPromise;
     if (registration) {
       const notifications = await registration.getNotifications({
@@ -172,7 +174,7 @@ export const notificationService = SmartNotificationService.getInstance();
 // Easy integration functions for TaskManager
 export const useSmartNotifications = () => {
   const scheduleReminder = async (task: {
-    id: string;
+    id: TaskId;
     description: string;
     priority?: string;
     dueDate?: string;
@@ -187,10 +189,11 @@ export const useSmartNotifications = () => {
         task.priority === "Low"
           ? task.priority
           : "Medium",
+      reminderTime: task.dueDate ? new Date(task.dueDate) : undefined,
     });
   };
 
-  const cancelReminder = async (taskId: number) => {
+  const cancelReminder = async (taskId: TaskId) => {
     await notificationService.cancelTaskNotification(taskId);
   };
 

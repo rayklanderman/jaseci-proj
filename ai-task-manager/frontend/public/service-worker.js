@@ -1,13 +1,6 @@
 // AI Task Manager Service Worker
-const CACHE_NAME = "ai-task-manager-v1";
-const urlsToCache = [
-  "/",
-  "/static/js/bundle.js",
-  "/static/css/main.css",
-  "/manifest.json",
-  "/icon.svg",
-  "/vite.svg",
-];
+const CACHE_NAME = "ai-task-manager-v2";
+const urlsToCache = ["/", "/manifest.json", "/icon.svg", "/vite.svg"];
 
 // Install event - cache resources
 self.addEventListener("install", (event) => {
@@ -44,11 +37,14 @@ self.addEventListener("activate", (event) => {
 
 // Fetch event - serve from cache, fallback to network
 self.addEventListener("fetch", (event) => {
+  if (event.request.method !== "GET") {
+    return;
+  }
+
   event.respondWith(
     caches
       .match(event.request)
       .then((response) => {
-        // Return cached version or fetch from network
         if (response) {
           console.log("📋 Serving from cache:", event.request.url);
           return response;
@@ -56,31 +52,31 @@ self.addEventListener("fetch", (event) => {
 
         console.log("🌐 Fetching from network:", event.request.url);
         return fetch(event.request)
-          .then((response) => {
-            // Don't cache non-successful responses
+          .then((networkResponse) => {
             if (
-              !response ||
-              response.status !== 200 ||
-              response.type !== "basic"
+              !networkResponse ||
+              networkResponse.status !== 200 ||
+              networkResponse.type !== "basic"
             ) {
-              return response;
+              return networkResponse;
             }
 
-            // Clone the response for caching
-            const responseToCache = response.clone();
+            if (event.request.url.includes("/api/")) {
+              return networkResponse;
+            }
+
+            const responseToCache = networkResponse.clone();
             caches.open(CACHE_NAME).then((cache) => {
               cache.put(event.request, responseToCache);
             });
 
-            return response;
+            return networkResponse;
           })
           .catch((error) => {
             console.log("❌ Network fetch failed:", event.request.url, error);
-            // Return a basic response for failed requests
             if (event.request.destination === "document") {
               return caches.match("/");
             }
-            // For API requests, return a simple error response
             return new Response(
               JSON.stringify({ error: "Network unavailable" }),
               {
@@ -92,7 +88,6 @@ self.addEventListener("fetch", (event) => {
       })
       .catch((error) => {
         console.log("❌ Cache match failed:", error);
-        // Offline fallback
         if (event.request.destination === "document") {
           return caches.match("/");
         }
@@ -116,19 +111,17 @@ self.addEventListener("push", (event) => {
     const options = {
       body: data.body,
       icon: "/icon.svg",
-      badge: "/badge.png",
+      badge: "/icon.svg",
       tag: data.tag || "task-reminder",
       requireInteraction: data.priority === "high",
       actions: [
         {
           action: "complete",
           title: "✅ Mark Complete",
-          icon: "/complete-icon.png",
         },
         {
           action: "snooze",
           title: "⏰ Remind Later",
-          icon: "/snooze-icon.png",
         },
       ],
       data: data,
@@ -194,7 +187,7 @@ async function snoozeTask(taskData) {
   setTimeout(() => {
     self.registration.showNotification("🔔 Snoozed Reminder", {
       body: taskData.body,
-      icon: "/icon-192.png",
+      icon: "/icon.svg",
       tag: taskData.tag,
       data: taskData,
     });

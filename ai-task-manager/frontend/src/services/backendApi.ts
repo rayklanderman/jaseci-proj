@@ -5,15 +5,51 @@ import type {
   TaskListResponse,
   HealthCheckResponse,
   ServiceInfoResponse,
+  TaskId,
 } from "../types/api";
 
-const API_BASE_URL = "http://localhost:8000";
+const isDev = import.meta.env.DEV;
+
+interface BackendTaskPayload {
+  id: string;
+  content: string;
+  category: Task["category"];
+  priority: Task["priority"];
+  status: "pending" | "in-progress" | "completed";
+  due_date?: string;
+  created_at?: string;
+}
+
+interface BackendTaskEnvelope {
+  success: boolean;
+  message?: string;
+  task: BackendTaskPayload;
+}
+
+interface BackendTasksEnvelope {
+  success: boolean;
+  tasks: BackendTaskPayload[];
+}
+
+// Dynamic API base URL detection
+function getApiBaseUrl(): string {
+  // In production (Vercel), use /api prefix for serverless functions
+  if (
+    window.location.hostname !== "localhost" &&
+    window.location.hostname !== "127.0.0.1"
+  ) {
+    return window.location.origin + "/api";
+  }
+  // In development, use localhost:8000
+  return "http://localhost:8000";
+}
 
 // API utility function
 async function apiCall<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
+  const API_BASE_URL = getApiBaseUrl();
   const response = await fetch(`${API_BASE_URL}${endpoint}`, {
     headers: {
       "Content-Type": "application/json",
@@ -30,15 +66,15 @@ async function apiCall<T>(
 }
 
 // Convert backend task format to frontend format
-function convertBackendTask(backendTask: any): Task {
+function convertBackendTask(backendTask: BackendTaskPayload): Task {
   return {
-    id:
-      parseInt(backendTask.id.split("_")[1]) ||
-      Math.floor(Math.random() * 9000) + 1000,
+    id: String(backendTask.id) as TaskId,
     description: backendTask.content,
     category: backendTask.category,
     completed: backendTask.status === "completed",
     priority: backendTask.priority,
+    due_date: backendTask.due_date,
+    created_at: backendTask.created_at,
   };
 }
 
@@ -46,14 +82,14 @@ export const backendTaskService = {
   // Create a new task
   async createTask(description: string): Promise<TaskResponse> {
     try {
-      const response = await apiCall<any>("/tasks", {
+      const response = await apiCall<BackendTaskEnvelope>("/tasks", {
         method: "POST",
         body: JSON.stringify({ content: description }),
       });
 
       const task = convertBackendTask(response.task);
 
-      console.log("✅ Task created via backend:", task);
+      if (isDev) console.log("✅ Task created via backend:", task);
 
       return {
         success: true,
@@ -72,7 +108,7 @@ export const backendTaskService = {
   // Get all tasks
   async getTasks(): Promise<TaskListResponse> {
     try {
-      const response = await apiCall<any>("/tasks");
+      const response = await apiCall<BackendTasksEnvelope>("/tasks");
 
       const tasks = response.tasks.map(convertBackendTask);
       const pendingTasks = tasks.filter((t: Task) => !t.completed);
@@ -94,11 +130,13 @@ export const backendTaskService = {
         aiInsight = "🎯 Good pace! Keep working through your task list.";
       }
 
-      console.log("📋 Tasks loaded from backend:", {
-        total: tasks.length,
-        pending: pendingTasks.length,
-        completed: completedTasks.length,
-      });
+      if (isDev) {
+        console.log("📋 Tasks loaded from backend:", {
+          total: tasks.length,
+          pending: pendingTasks.length,
+          completed: completedTasks.length,
+        });
+      }
 
       return {
         success: true,
@@ -133,39 +171,16 @@ export const backendTaskService = {
   },
 
   // Complete a task
-  async completeTask(taskId: number): Promise<TaskResponse> {
+  async completeTask(taskId: TaskId): Promise<TaskResponse> {
     try {
-      // Find the task ID format the backend expects
-      const tasksResponse = await this.getTasks();
-      if (!tasksResponse.success) {
-        throw new Error("Could not fetch tasks to find backend ID");
-      }
-
-      const allTasks = [
-        ...tasksResponse.data.pending_tasks,
-        ...tasksResponse.data.completed_tasks,
-      ];
-      const task = allTasks.find((t) => t.id === taskId);
-
-      if (!task) {
-        return {
-          success: false,
-          error: "Task not found",
-          task_id: taskId,
-        };
-      }
-
-      // Use the backend format - we need to convert back to backend task ID
-      const backendTaskId = `task_${taskId}`;
-
-      const response = await apiCall<any>(`/tasks/${backendTaskId}`, {
+      const response = await apiCall<BackendTaskEnvelope>(`/tasks/${taskId}`, {
         method: "PUT",
         body: JSON.stringify({ status: "completed" }),
       });
 
       const updatedTask = convertBackendTask(response.task);
 
-      console.log("✅ Task completed via backend:", updatedTask);
+      if (isDev) console.log("✅ Task completed via backend:", updatedTask);
 
       return {
         success: true,
@@ -183,15 +198,16 @@ export const backendTaskService = {
   },
 
   // Delete a task
-  async deleteTask(taskId: number): Promise<TaskResponse> {
+  async deleteTask(taskId: TaskId): Promise<TaskResponse> {
     try {
-      const backendTaskId = `task_${taskId}`;
+      const response = await apiCall<{ success: boolean; message?: string }>(
+        `/tasks/${taskId}`,
+        {
+          method: "DELETE",
+        }
+      );
 
-      const response = await apiCall<any>(`/tasks/${backendTaskId}`, {
-        method: "DELETE",
-      });
-
-      console.log("🗑️ Task deleted via backend:", taskId);
+      if (isDev) console.log("🗑️ Task deleted via backend:", taskId);
 
       return {
         success: true,
@@ -211,7 +227,13 @@ export const backendTaskService = {
   // Health check
   async healthCheck(): Promise<HealthCheckResponse> {
     try {
-      const response = await apiCall<any>("/HealthCheck");
+      const response = await apiCall<{
+        status: string;
+        service: string;
+        ai_available?: boolean;
+        tasks_count?: number;
+        timestamp?: string;
+      }>("/HealthCheck");
 
       return {
         status: response.status,

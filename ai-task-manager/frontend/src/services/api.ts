@@ -1,15 +1,17 @@
 // Local Task Management Service - No backend required!
-// This implements all the AI features locally for a fully working app
+// Provides a fully working task manager when the Jac backend is unavailable
 
 import type {
   Task,
+  TaskId,
   TaskResponse,
   TaskListResponse,
   HealthCheckResponse,
   ServiceInfoResponse,
 } from "../types/api";
 
-// AI Categorization Logic (same as Jac backend)
+// --- Helpers -----------------------------------------------------------------
+
 function categorizeTask(
   description: string
 ): "Work" | "Personal" | "Health" | "Learning" | "General" {
@@ -23,7 +25,8 @@ function categorizeTask(
     desc.includes("email")
   ) {
     return "Work";
-  } else if (
+  }
+  if (
     desc.includes("buy") ||
     desc.includes("grocery") ||
     desc.includes("shopping") ||
@@ -31,7 +34,8 @@ function categorizeTask(
     desc.includes("home")
   ) {
     return "Personal";
-  } else if (
+  }
+  if (
     desc.includes("run") ||
     desc.includes("exercise") ||
     desc.includes("gym") ||
@@ -39,7 +43,8 @@ function categorizeTask(
     desc.includes("health")
   ) {
     return "Health";
-  } else if (
+  }
+  if (
     desc.includes("read") ||
     desc.includes("study") ||
     desc.includes("learn") ||
@@ -47,72 +52,85 @@ function categorizeTask(
     desc.includes("book")
   ) {
     return "Learning";
-  } else {
-    return "General";
   }
+
+  return "General";
 }
 
-// AI Insight Generation
 function generateAiInsight(
   completedCount: number,
   pendingCount: number
 ): string {
   if (pendingCount === 0 && completedCount > 0) {
     return "🎉 Perfect! All tasks completed. Time to set new goals!";
-  } else if (completedCount >= pendingCount && completedCount > 0) {
-    return "📈 Excellent progress! You're completing tasks efficiently.";
-  } else if (pendingCount > completedCount * 2) {
-    return "⚡ Focus mode recommended! Consider tackling a few smaller tasks first.";
-  } else {
-    return "🎯 Good momentum! Keep working through your pending tasks.";
   }
+  if (completedCount >= pendingCount && completedCount > 0) {
+    return "📈 Excellent progress! You're completing tasks efficiently.";
+  }
+  if (pendingCount > completedCount * 2) {
+    return "⚡ Focus mode recommended! Consider tackling a few smaller tasks first.";
+  }
+  return "🎯 Good momentum! Keep working through your pending tasks.";
 }
 
-// Local Storage Management
 const STORAGE_KEY = "ai_task_manager_tasks";
 
 function loadTasks(): Task[] {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
-    return stored ? JSON.parse(stored) : [];
+    if (!stored) {
+      return [];
+    }
+
+    const parsed = JSON.parse(stored);
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    return parsed.map((task) => ({
+      ...task,
+      id: String(task.id) as TaskId,
+    }));
   } catch {
     return [];
   }
 }
 
 function saveTasks(tasks: Task[]): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
+  const payload = tasks.map((task) => ({
+    ...task,
+    id: String(task.id),
+  }));
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
 }
 
-// Generate random task ID
-function generateTaskId(): number {
-  return Math.floor(Math.random() * 9000) + 1000;
+function generateTaskId(): TaskId {
+  return `${Date.now()}-${Math.floor(Math.random() * 100000)}`;
 }
 
-// Simulate async operations for realistic feel
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+// --- Public service -----------------------------------------------------------
+
 export const taskService = {
-  // Create a new task
   async createTask(description: string): Promise<TaskResponse> {
-    await delay(200); // Simulate network delay
+    await delay(200);
 
     const tasks = loadTasks();
-    const category = categorizeTask(description);
+    const timestamp = new Date().toISOString();
     const newTask: Task = {
       id: generateTaskId(),
       description,
-      category,
+      category: categorizeTask(description),
       completed: false,
-      priority: "Medium", // Default priority
+      priority: "Medium",
+      created_at: timestamp,
     };
 
     tasks.push(newTask);
     saveTasks(tasks);
-
-    console.log("✅ Task created:", newTask);
 
     return {
       success: true,
@@ -121,23 +139,12 @@ export const taskService = {
     };
   },
 
-  // Get all tasks with AI insights
   async getTasks(): Promise<TaskListResponse> {
-    await delay(150); // Simulate network delay
+    await delay(150);
 
     const tasks = loadTasks();
-    const pendingTasks = tasks.filter((t) => !t.completed);
-    const completedTasks = tasks.filter((t) => t.completed);
-
-    const aiInsight = generateAiInsight(
-      completedTasks.length,
-      pendingTasks.length
-    );
-
-    console.log("📋 Tasks loaded:", {
-      pending: pendingTasks.length,
-      completed: completedTasks.length,
-    });
+    const pendingTasks = tasks.filter((task) => !task.completed);
+    const completedTasks = tasks.filter((task) => task.completed);
 
     return {
       success: true,
@@ -150,17 +157,19 @@ export const taskService = {
           completion_rate:
             tasks.length > 0 ? completedTasks.length / tasks.length : 0,
         },
-        ai_insight: aiInsight,
+        ai_insight: generateAiInsight(
+          completedTasks.length,
+          pendingTasks.length
+        ),
       },
     };
   },
 
-  // Complete a task
-  async completeTask(taskId: number): Promise<TaskResponse> {
+  async completeTask(taskId: TaskId): Promise<TaskResponse> {
     await delay(100);
 
     const tasks = loadTasks();
-    const task = tasks.find((t) => t.id === taskId);
+    const task = tasks.find((item) => item.id === taskId);
 
     if (!task) {
       return {
@@ -173,8 +182,6 @@ export const taskService = {
     task.completed = true;
     saveTasks(tasks);
 
-    console.log("✅ Task completed:", task);
-
     return {
       success: true,
       task,
@@ -182,14 +189,13 @@ export const taskService = {
     };
   },
 
-  // Delete a task
-  async deleteTask(taskId: number): Promise<TaskResponse> {
+  async deleteTask(taskId: TaskId): Promise<TaskResponse> {
     await delay(100);
 
     const tasks = loadTasks();
-    const taskIndex = tasks.findIndex((t) => t.id === taskId);
+    const filtered = tasks.filter((task) => task.id !== taskId);
 
-    if (taskIndex === -1) {
+    if (filtered.length === tasks.length) {
       return {
         success: false,
         error: "Task not found",
@@ -197,11 +203,7 @@ export const taskService = {
       };
     }
 
-    const deletedTask = tasks[taskIndex];
-    tasks.splice(taskIndex, 1);
-    saveTasks(tasks);
-
-    console.log("🗑️ Task deleted:", deletedTask);
+    saveTasks(filtered);
 
     return {
       success: true,
@@ -210,7 +212,6 @@ export const taskService = {
     };
   },
 
-  // Health check
   async healthCheck(): Promise<HealthCheckResponse> {
     await delay(50);
 
@@ -227,7 +228,6 @@ export const taskService = {
     };
   },
 
-  // Service info
   async getServiceInfo(): Promise<ServiceInfoResponse> {
     await delay(50);
 

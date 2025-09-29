@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import autoSwitchingTaskService from "../services/autoSwitchingApi";
 import type { BackendStatus } from "../services/backendDetector";
-import type { Task, TaskListResponse } from "../types/api";
+import type { Task, TaskId, TaskListResponse } from "../types/api";
 import { TaskTemplates } from "./TaskTemplates";
 import { useTheme } from "../services/themeService";
 import { useSmartNotifications } from "../services/smartNotifications";
@@ -10,8 +10,8 @@ import type { TaskTemplate } from "../services/taskTemplates";
 
 interface TaskItemProps {
   task: Task;
-  onComplete: (taskId: number) => void;
-  onDelete: (taskId: number) => void;
+  onComplete: (taskId: TaskId) => void;
+  onDelete: (taskId: TaskId) => void;
 }
 
 const TaskItem: React.FC<TaskItemProps> = ({ task, onComplete, onDelete }) => {
@@ -188,8 +188,8 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onComplete, onDelete }) => {
 
 interface TaskListProps {
   tasks: Task[];
-  onComplete: (taskId: number) => void;
-  onDelete: (taskId: number) => void;
+  onComplete: (taskId: TaskId) => void;
+  onDelete: (taskId: TaskId) => void;
   title: string;
   emptyMessage: string;
   icon: string;
@@ -342,7 +342,7 @@ const TaskManager: React.FC = () => {
     setIsLoading(false);
   };
 
-  const completeTask = async (taskId: number) => {
+  const completeTask = async (taskId: TaskId) => {
     setIsLoading(true);
     try {
       const response = await autoSwitchingTaskService.completeTask(taskId);
@@ -358,7 +358,7 @@ const TaskManager: React.FC = () => {
     setIsLoading(false);
   };
 
-  const deleteTask = async (taskId: number) => {
+  const deleteTask = async (taskId: TaskId) => {
     setIsLoading(true);
     try {
       const response = await autoSwitchingTaskService.deleteTask(taskId);

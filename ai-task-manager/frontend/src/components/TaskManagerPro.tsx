@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import autoSwitchingTaskService from "../services/autoSwitchingApi";
 import type { BackendStatus } from "../services/backendDetector";
-import type { Task } from "../types/api";
+import type { Task, TaskId } from "../types/api";
 import { TaskTemplates } from "./TaskTemplates";
 import { useTheme } from "../services/themeService";
 import { useSmartNotifications } from "../services/smartNotifications";
@@ -219,8 +219,8 @@ const DotsIcon = () => (
 
 interface TaskItemProps {
   task: Task;
-  onComplete: (taskId: number) => void;
-  onDelete: (taskId: number) => void;
+  onComplete: (taskId: TaskId) => void;
+  onDelete: (taskId: TaskId) => void;
 }
 
 const TaskItem: React.FC<TaskItemProps> = ({ task, onComplete, onDelete }) => {

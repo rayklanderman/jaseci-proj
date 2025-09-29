@@ -6,18 +6,30 @@ import type {
   TaskListResponse,
   HealthCheckResponse,
   ServiceInfoResponse,
+  TaskId,
 } from "../types/api";
 
 import backendDetector, { type BackendStatus } from "./backendDetector";
 import backendTaskService from "./backendApi";
 import { taskService as localTaskService } from "./api";
 
+const isDev = import.meta.env.DEV;
+
 class AutoSwitchingTaskService {
+  private static pollerHandle: number | null = null;
+  private readonly pollIntervalMs = 1000;
+
   constructor() {
     // Auto-update backend detection in the background
-    setInterval(() => {
-      backendDetector.getStatus();
-    }, 1000);
+    if (
+      typeof window !== "undefined" &&
+      AutoSwitchingTaskService.pollerHandle === null
+    ) {
+      AutoSwitchingTaskService.pollerHandle = window.setInterval(() => {
+        backendDetector.getStatus();
+      }, this.pollIntervalMs);
+    }
+    backendDetector.getStatus();
   }
 
   /**
@@ -26,7 +38,7 @@ class AutoSwitchingTaskService {
   async createTask(description: string): Promise<TaskResponse> {
     if (backendDetector.useJacBackend()) {
       try {
-        console.log("🚀 Using Jac backend for task creation");
+        if (isDev) console.log("🚀 Using Jac backend for task creation");
         return await backendTaskService.createTask(description);
       } catch (error) {
         console.warn(
@@ -38,7 +50,7 @@ class AutoSwitchingTaskService {
     }
 
     // Local mode fallback
-    console.log("📱 Using local mode for task creation");
+    if (isDev) console.log("📱 Using local mode for task creation");
     return await localTaskService.createTask(description);
   }
 
@@ -47,12 +59,17 @@ class AutoSwitchingTaskService {
    */
   async getTasks(): Promise<TaskListResponse> {
     const backendStatus = backendDetector.getStatus();
-    console.log("🔍 Debug - Backend status for getTasks:", backendStatus);
-    console.log("🔍 Debug - useJacBackend():", backendDetector.useJacBackend());
+    if (isDev) {
+      console.log("🔍 Debug - Backend status for getTasks:", backendStatus);
+      console.log(
+        "🔍 Debug - useJacBackend():",
+        backendDetector.useJacBackend()
+      );
+    }
 
     if (backendDetector.useJacBackend()) {
       try {
-        console.log("🚀 Using Jac backend for task list");
+        if (isDev) console.log("🚀 Using Jac backend for task list");
         return await backendTaskService.getTasks();
       } catch (error) {
         console.warn(
@@ -64,17 +81,17 @@ class AutoSwitchingTaskService {
     }
 
     // Local mode fallback
-    console.log("📱 Using local mode for task list");
+    if (isDev) console.log("📱 Using local mode for task list");
     return await localTaskService.getTasks();
   }
 
   /**
    * Complete task (auto-switching)
    */
-  async completeTask(taskId: number): Promise<TaskResponse> {
+  async completeTask(taskId: TaskId): Promise<TaskResponse> {
     if (backendDetector.useJacBackend()) {
       try {
-        console.log("🚀 Using Jac backend for task completion");
+        if (isDev) console.log("🚀 Using Jac backend for task completion");
         return await backendTaskService.completeTask(taskId);
       } catch (error) {
         console.warn(
@@ -86,17 +103,17 @@ class AutoSwitchingTaskService {
     }
 
     // Local mode fallback
-    console.log("📱 Using local mode for task completion");
+    if (isDev) console.log("📱 Using local mode for task completion");
     return await localTaskService.completeTask(taskId);
   }
 
   /**
    * Delete task (auto-switching)
    */
-  async deleteTask(taskId: number): Promise<TaskResponse> {
+  async deleteTask(taskId: TaskId): Promise<TaskResponse> {
     if (backendDetector.useJacBackend()) {
       try {
-        console.log("🚀 Using Jac backend for task deletion");
+        if (isDev) console.log("🚀 Using Jac backend for task deletion");
         return await backendTaskService.deleteTask(taskId);
       } catch (error) {
         console.warn(
@@ -108,8 +125,26 @@ class AutoSwitchingTaskService {
     }
 
     // Local mode fallback
-    console.log("📱 Using local mode for task deletion");
+    if (isDev) console.log("📱 Using local mode for task deletion");
     return await localTaskService.deleteTask(taskId);
+  }
+
+  /**
+   * Update task attributes (currently supports completion toggles)
+   */
+  async updateTask(
+    taskId: TaskId,
+    updates: { completed?: boolean }
+  ): Promise<TaskResponse> {
+    if (typeof updates.completed === "boolean" && updates.completed) {
+      return this.completeTask(taskId);
+    }
+
+    return {
+      success: false,
+      error: "Only completion updates are supported in the current client",
+      task_id: taskId,
+    };
   }
 
   /**

@@ -18,9 +18,21 @@ class BackendDetectionService {
   };
 
   private checkInterval: number | null = null;
-  private readonly JAC_BACKEND_URL = "http://localhost:8000";
   private readonly CHECK_INTERVAL = 5000; // Check every 5 seconds
   private readonly CHECK_TIMEOUT = 2000; // 2 second timeout for checks
+
+  // Dynamic backend URL detection
+  private getBackendUrl(): string {
+    // In production (Vercel), use /api prefix for serverless functions
+    if (
+      window.location.hostname !== "localhost" &&
+      window.location.hostname !== "127.0.0.1"
+    ) {
+      return window.location.origin + "/api";
+    }
+    // In development, use localhost:8000
+    return "http://localhost:8000";
+  }
 
   constructor() {
     this.startPeriodicCheck();
@@ -32,6 +44,8 @@ class BackendDetectionService {
    * Check if Jac backend service is running
    */
   async checkBackendAvailability(): Promise<BackendStatus> {
+    const backendUrl = this.getBackendUrl();
+
     try {
       // Try to reach the health check endpoint
       const controller = new AbortController();
@@ -40,7 +54,7 @@ class BackendDetectionService {
         this.CHECK_TIMEOUT
       );
 
-      const response = await fetch(`${this.JAC_BACKEND_URL}/HealthCheck`, {
+      const response = await fetch(`${backendUrl}/HealthCheck`, {
         method: "GET",
         headers: {
           Accept: "application/json",
@@ -57,7 +71,7 @@ class BackendDetectionService {
         this.status = {
           isAvailable: true,
           mode: "jac-backend",
-          url: this.JAC_BACKEND_URL,
+          url: backendUrl,
           version: healthData.version || "1.0.0",
           features: healthData.features || [],
           lastChecked: Date.now(),
@@ -77,7 +91,7 @@ class BackendDetectionService {
 
       // Only log if this is a change in status
       if (this.status.mode === "jac-backend") {
-        console.log("📱 Switching to local simulation mode");
+        console.log("📱 Switching to local simulation mode:", error);
       }
     }
 
@@ -125,7 +139,7 @@ class BackendDetectionService {
    * Get the appropriate API base URL
    */
   getApiBaseUrl(): string {
-    return this.status.isAvailable ? this.JAC_BACKEND_URL : "";
+    return this.status.isAvailable ? this.getBackendUrl() : "";
   }
 
   /**

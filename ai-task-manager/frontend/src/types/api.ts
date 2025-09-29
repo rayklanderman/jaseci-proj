@@ -1,11 +1,16 @@
 // TypeScript interfaces for the AI Task Manager
 
+export type TaskId = string;
+
 export interface Task {
-  id: number;
+  id: TaskId;
   description: string;
   category: "Work" | "Personal" | "Health" | "Learning" | "General";
   completed: boolean;
   priority?: "High" | "Medium" | "Low";
+  title?: string;
+  due_date?: string;
+  created_at?: string;
 }
 
 export interface TaskStats {
@@ -29,7 +34,7 @@ export interface TaskResponse {
   task?: Task;
   message?: string;
   error?: string;
-  task_id?: number;
+  task_id?: TaskId;
 }
 
 export interface CreateTaskRequest {
@@ -39,7 +44,7 @@ export interface CreateTaskRequest {
 
 export interface CompleteTaskRequest {
   action: "complete";
-  task_id: number;
+  task_id: TaskId;
 }
 
 export interface ListTasksRequest {
@@ -48,7 +53,7 @@ export interface ListTasksRequest {
 
 export interface DeleteTaskRequest {
   action: "delete";
-  task_id: number;
+  task_id: TaskId;
 }
 
 export type TaskRequest =
