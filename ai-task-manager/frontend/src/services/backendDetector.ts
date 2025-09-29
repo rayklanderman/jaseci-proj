@@ -8,6 +8,7 @@ export interface BackendStatus {
   version?: string;
   features?: string[];
   lastChecked: number;
+  tasks_count?: number;
 }
 
 class BackendDetectionService {
@@ -74,6 +75,7 @@ class BackendDetectionService {
           url: backendUrl,
           version: healthData.version || "1.0.0",
           features: healthData.features || [],
+          tasks_count: healthData.tasks_count,
           lastChecked: Date.now(),
         };
 

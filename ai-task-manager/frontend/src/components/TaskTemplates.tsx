@@ -3,7 +3,6 @@
 
 import React, { useState } from "react";
 import {
-  TaskTemplateService,
   CustomTemplateService,
   type TaskTemplate,
 } from "../services/taskTemplates";

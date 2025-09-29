@@ -41,22 +41,6 @@ const SearchIcon = () => (
   </svg>
 );
 
-const FilterIcon = () => (
-  <svg
-    className="w-5 h-5"
-    fill="none"
-    stroke="currentColor"
-    viewBox="0 0 24 24"
-  >
-    <path
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth={2}
-      d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.414A1 1 0 013 6.707V4z"
-    />
-  </svg>
-);
-
 const CheckIcon = () => (
   <svg
     className="w-5 h-5"
@@ -85,22 +69,6 @@ const TrashIcon = () => (
       strokeLinejoin="round"
       strokeWidth={2}
       d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-    />
-  </svg>
-);
-
-const CalendarIcon = () => (
-  <svg
-    className="w-5 h-5"
-    fill="none"
-    stroke="currentColor"
-    viewBox="0 0 24 24"
-  >
-    <path
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth={2}
-      d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
     />
   </svg>
 );
@@ -181,22 +149,6 @@ const BellIcon = () => (
       strokeLinejoin="round"
       strokeWidth={2}
       d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
-    />
-  </svg>
-);
-
-const ChevronDownIcon = () => (
-  <svg
-    className="w-4 h-4"
-    fill="none"
-    stroke="currentColor"
-    viewBox="0 0 24 24"
-  >
-    <path
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth={2}
-      d="M19 9l-7 7-7-7"
     />
   </svg>
 );
@@ -786,7 +738,7 @@ const TaskManagerPro: React.FC = () => {
                 </div>
 
                 {/* Filters */}
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <select
                     value={filterPriority}
                     onChange={(e) => setFilterPriority(e.target.value)}
@@ -806,6 +758,18 @@ const TaskManagerPro: React.FC = () => {
                     <option value="all">All Tasks</option>
                     <option value="pending">Pending</option>
                     <option value="completed">Completed</option>
+                  </select>
+
+                  <select
+                    value={filterCategory}
+                    onChange={(e) => setFilterCategory(e.target.value)}
+                    className="px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="all">All Categories</option>
+                    <option value="Personal">Personal</option>
+                    <option value="Work">Work</option>
+                    <option value="Health">Health</option>
+                    <option value="Learning">Learning</option>
                   </select>
                 </div>
               </div>

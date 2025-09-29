@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import autoSwitchingTaskService from "../services/autoSwitchingApi";
 import type { BackendStatus } from "../services/backendDetector";
-import type { Task, TaskId, TaskListResponse } from "../types/api";
+import type { Task, TaskId, TaskListResponse, AIBriefData } from "../types/api";
 import { TaskTemplates } from "./TaskTemplates";
 import { useTheme } from "../services/themeService";
 import { useSmartNotifications } from "../services/smartNotifications";
@@ -72,6 +72,25 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onComplete, onDelete }) => {
             )} backdrop-blur-lg shadow-lg hover:border-indigo-400`
       }`}
     >
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        {typeof task.aiConfidence === "number" && (
+          <span className="inline-flex items-center gap-1 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-xs font-medium text-indigo-600">
+            🤖 Confidence {Math.round(task.aiConfidence * 100)}%
+          </span>
+        )}
+        {task.aiTags?.map((tag) => (
+          <span
+            key={`${task.id}-${tag}`}
+            className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white/80 px-3 py-1 text-xs font-medium text-slate-500"
+          >
+            #{tag}
+          </span>
+        ))}
+      </div>
+
+      {task.aiReasoning && (
+        <p className="mt-2 text-sm text-slate-500">{task.aiReasoning}</p>
+      )}
       <div className="p-6">
         <div className="flex items-start justify-between">
           <div className="flex items-start space-x-4 flex-1">
@@ -254,6 +273,17 @@ const TaskManager: React.FC = () => {
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedTime, setSelectedTime] = useState("");
   const [showDateTimeInputs, setShowDateTimeInputs] = useState(false);
+  const [aiBrief, setAIBrief] = useState<AIBriefData | null>(null);
+  const [isBriefLoading, setIsBriefLoading] = useState(false);
+  const [briefError, setBriefError] = useState<string | null>(null);
+
+  const taskLookup = useMemo(() => {
+    if (!tasks) return new Map<TaskId, Task>();
+    const map = new Map<TaskId, Task>();
+    tasks.data.pending_tasks.forEach((task) => map.set(task.id, task));
+    tasks.data.completed_tasks.forEach((task) => map.set(task.id, task));
+    return map;
+  }, [tasks]);
 
   // Initialize services
   const { theme, toggleTheme } = useTheme();
@@ -264,6 +294,28 @@ const TaskManager: React.FC = () => {
     const customs = CustomTemplateService.getCustomTemplates();
 
     return [...customs, ...builtIns].slice(0, 8);
+  }, []);
+
+  const fetchAIBrief = useCallback(async () => {
+    setIsBriefLoading(true);
+    try {
+      const response = await autoSwitchingTaskService.getAIBrief();
+      if (response.success) {
+        setAIBrief(response.data);
+        setBriefError(null);
+      } else {
+        setAIBrief(response.data);
+        setBriefError(
+          response.error ||
+            "AI brief is in fallback mode. We'll keep trying to reach the backend."
+        );
+      }
+    } catch (error) {
+      console.error("Error generating AI daily brief:", error);
+      setBriefError("Unable to generate the AI brief right now.");
+    } finally {
+      setIsBriefLoading(false);
+    }
   }, []);
 
   // Update backend status periodically
@@ -277,13 +329,14 @@ const TaskManager: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
-  const loadTasks = async () => {
+  const loadTasks = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
       const response = await autoSwitchingTaskService.getTasks();
       if (response.success) {
         setTasks(response);
+        void fetchAIBrief();
       } else {
         setError("Failed to load tasks");
       }
@@ -292,7 +345,7 @@ const TaskManager: React.FC = () => {
       setError("Unable to connect to the AI Task Manager service.");
     }
     setIsLoading(false);
-  };
+  }, [fetchAIBrief]);
 
   const createTask = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -396,8 +449,8 @@ const TaskManager: React.FC = () => {
   };
 
   useEffect(() => {
-    loadTasks();
-  }, []);
+    void loadTasks();
+  }, [loadTasks]);
 
   const getCompletionRate = () => {
     if (!tasks?.data.stats) return 0;
@@ -786,6 +839,211 @@ const TaskManager: React.FC = () => {
           </div>
 
           <aside className="space-y-6">
+            {(aiBrief || isBriefLoading || briefError) && (
+              <div className="rounded-3xl border border-white/60 bg-white/85 p-6 shadow-card backdrop-blur">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">
+                      Daily brief
+                    </p>
+                    <h3 className="mt-2 text-lg font-semibold text-slate-900">
+                      AI agenda coach
+                    </h3>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium ${
+                        aiBrief?.aiAvailable
+                          ? "bg-emerald-100 text-emerald-700"
+                          : "bg-slate-100 text-slate-500"
+                      }`}
+                    >
+                      {aiBrief?.aiAvailable ? "Gemini" : "Local"}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => void fetchAIBrief()}
+                      disabled={isBriefLoading}
+                      className="inline-flex items-center gap-1 rounded-full border border-slate-200/70 bg-white/90 px-3 py-1 text-xs font-medium text-slate-600 transition-all duration-200 hover:border-brand-300 hover:text-brand-600 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      🔄 Refresh
+                    </button>
+                  </div>
+                </div>
+
+                {isBriefLoading ? (
+                  <div className="mt-6 flex items-center gap-3 text-sm text-slate-500">
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-brand-200 border-t-brand-500"></span>
+                    Generating your brief...
+                  </div>
+                ) : aiBrief ? (
+                  <div className="mt-4 space-y-5">
+                    <p className="text-sm text-slate-600">{aiBrief.summary}</p>
+
+                    {aiBrief.agenda.length > 0 && (
+                      <div className="space-y-3">
+                        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">
+                          Agenda
+                        </p>
+                        <div className="space-y-3">
+                          {aiBrief.agenda.map((item, index) => {
+                            const relatedTasks = item.relatedTaskIds
+                              .map((id) => taskLookup.get(id))
+                              .filter((task): task is Task => Boolean(task));
+
+                            return (
+                              <div
+                                key={`${item.title}-${index}`}
+                                className="rounded-2xl border border-slate-200/70 bg-white/95 px-4 py-3 shadow-sm"
+                              >
+                                <div className="flex items-start justify-between gap-3">
+                                  <div>
+                                    <p className="text-sm font-semibold text-slate-800">
+                                      {item.title}
+                                    </p>
+                                    <p className="mt-1 text-xs text-slate-500">
+                                      {item.details}
+                                    </p>
+                                  </div>
+                                  <div className="flex flex-col items-end gap-1 text-xs text-slate-500">
+                                    {item.priority && (
+                                      <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-1 font-medium">
+                                        ⭐ {item.priority}
+                                      </span>
+                                    )}
+                                    {item.suggestedTime && (
+                                      <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-1 font-medium text-indigo-600">
+                                        🕑 {item.suggestedTime}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {relatedTasks.length > 0 ? (
+                                  <div className="mt-3 space-y-2">
+                                    <p className="text-[0.65rem] font-semibold uppercase tracking-[0.24em] text-slate-400">
+                                      Linked tasks
+                                    </p>
+                                    <div className="space-y-2">
+                                      {relatedTasks.map((relatedTask) => (
+                                        <div
+                                          key={relatedTask.id}
+                                          className="flex items-center justify-between gap-3 rounded-xl border border-slate-200/70 bg-white/90 px-3 py-2"
+                                        >
+                                          <div className="min-w-0">
+                                            <p className="truncate text-xs font-semibold text-slate-700">
+                                              {relatedTask.description}
+                                            </p>
+                                            <div className="mt-1 flex flex-wrap items-center gap-2 text-[0.65rem] text-slate-500">
+                                              <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">
+                                                {relatedTask.category}
+                                              </span>
+                                              {relatedTask.priority && (
+                                                <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 font-medium text-indigo-600">
+                                                  {relatedTask.priority}
+                                                </span>
+                                              )}
+                                              {relatedTask.due_date && (
+                                                <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 font-medium text-amber-600">
+                                                  ⏰
+                                                  {new Date(
+                                                    relatedTask.due_date
+                                                  ).toLocaleDateString(
+                                                    undefined,
+                                                    {
+                                                      month: "short",
+                                                      day: "numeric",
+                                                    }
+                                                  )}
+                                                </span>
+                                              )}
+                                              {typeof relatedTask.aiConfidence ===
+                                                "number" && (
+                                                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 font-medium text-emerald-600">
+                                                  🤖
+                                                  {Math.round(
+                                                    relatedTask.aiConfidence *
+                                                      100
+                                                  )}
+                                                  %
+                                                </span>
+                                              )}
+                                            </div>
+                                          </div>
+                                          {relatedTask.completed ? (
+                                            <span className="text-xs font-semibold text-emerald-600">
+                                              Done
+                                            </span>
+                                          ) : (
+                                            <button
+                                              type="button"
+                                              onClick={() =>
+                                                void completeTask(
+                                                  relatedTask.id
+                                                )
+                                              }
+                                              className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-600 transition-colors duration-200 hover:border-emerald-300 hover:bg-emerald-100"
+                                            >
+                                              ✅ Mark done
+                                            </button>
+                                          )}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                ) : item.relatedTaskIds.length > 0 ? (
+                                  <p className="mt-2 text-xs text-slate-400">
+                                    Linked tasks:{" "}
+                                    {item.relatedTaskIds.join(", ")}
+                                  </p>
+                                ) : null}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {aiBrief.recommendations.length > 0 && (
+                      <div className="rounded-2xl bg-slate-50/80 px-4 py-3">
+                        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">
+                          Recommendations
+                        </p>
+                        <ul className="mt-2 space-y-2 text-sm text-slate-600">
+                          {aiBrief.recommendations.map((tip, index) => (
+                            <li
+                              key={`${tip}-${index}`}
+                              className="flex items-start gap-2"
+                            >
+                              <span className="mt-1 text-brand-500">•</span>
+                              <span>{tip}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    <p className="text-right text-xs text-slate-400">
+                      Updated{" "}
+                      {new Date(aiBrief.generatedAt).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </p>
+                  </div>
+                ) : (
+                  <p className="mt-4 text-sm text-slate-500">
+                    No brief available yet. Add a task or refresh to generate
+                    one.
+                  </p>
+                )}
+
+                {briefError && (
+                  <p className="mt-4 text-xs text-amber-600">{briefError}</p>
+                )}
+              </div>
+            )}
+
             {tasks && (
               <div className="rounded-3xl border border-white/60 bg-white/85 p-6 shadow-card backdrop-blur">
                 <p className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">

@@ -6,12 +6,14 @@ FastAPI server with Jac integration and AI-powered task categorization
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List, Optional, Any
 import datetime
 import uuid
 import os
 import subprocess
 import sys
+import json
+import re
 
 # Jac Integration - Import AI capabilities
 try:
@@ -63,6 +65,8 @@ class Task(BaseModel):
     priority: str
     status: str
     ai_reasoning: str
+    ai_confidence: Optional[float] = None
+    ai_tags: Optional[List[str]] = None
     created_at: str
     updated_at: str
 
@@ -78,88 +82,347 @@ class AnalyticsResponse(BaseModel):
     success: bool
     analytics: dict
 
+
+class AIBriefAgendaItem(BaseModel):
+    title: str
+    details: str
+    priority: Optional[str] = None
+    suggested_time: Optional[str] = None
+    related_task_ids: List[str] = []
+
+
+class AIBriefData(BaseModel):
+    summary: str
+    agenda: List[AIBriefAgendaItem]
+    recommendations: List[str]
+    ai_available: bool
+    generated_at: str
+
+
+class AIBriefResponse(BaseModel):
+    success: bool
+    data: AIBriefData
+    error: Optional[str] = None
+
 # Global storage (in production, use database)
 tasks_storage: List[Task] = []
 
+
+def build_fallback_brief(tasks: List[Task]) -> dict:
+    pending_tasks = [task for task in tasks if task.status != "completed"]
+    completed_tasks = [task for task in tasks if task.status == "completed"]
+
+    if not tasks:
+        summary = "No tasks logged yet – add a few to generate a personalised brief."
+    elif not pending_tasks:
+        summary = "All tasks are cleared. Celebrate the win and queue the next priorities!"
+    else:
+        top_priority = max(
+            pending_tasks,
+            key=lambda t: priority_score(getattr(t, "priority", None)),
+            default=None,
+        )
+        focus_category = pending_tasks[0].category if pending_tasks else "Personal"
+        summary = (
+            f"{len(pending_tasks)} tasks remaining. Focus on {focus_category} work first to maintain momentum."
+        )
+        if top_priority and priority_score(getattr(top_priority, "priority", None)) == 3:
+            summary = (
+                f"High-priority alert: '{top_priority.content}' needs attention. Clear it before tackling other items."
+            )
+
+    agenda = []
+    for task in pending_tasks[:3]:
+        agenda.append(
+            {
+                "title": task.content[:80] + ("…" if len(task.content) > 80 else ""),
+                "details": f"{task.category} • Priority {task.priority}",
+                "priority": task.priority,
+                "suggested_time": None,
+                "related_task_ids": [task.id],
+            }
+        )
+
+    recommendations: List[str] = []
+    if pending_tasks and completed_tasks:
+        recommendations.append(
+            "Batch similar tasks to finish the remaining items faster."
+        )
+    if len(pending_tasks) > len(completed_tasks) * 2:
+        recommendations.append(
+            "Start with the quickest task to build momentum, then move to the highest priority."
+        )
+    if not recommendations:
+        recommendations.append(
+            "Maintain your current cadence and review upcoming deadlines."
+        )
+
+    return {
+        "summary": summary,
+        "agenda": agenda,
+        "recommendations": recommendations,
+        "generated_at": datetime.datetime.now().isoformat(),
+        "ai_available": False,
+    }
+
+
+def generate_ai_brief(tasks: List[Task]) -> dict:
+    fallback_brief = build_fallback_brief(tasks)
+
+    if not tasks or not AI_AVAILABLE:
+        fallback_brief["ai_available"] = AI_AVAILABLE and bool(tasks)
+        return fallback_brief
+
+    try:
+        serialisable_tasks = [
+            {
+                "id": task.id,
+                "content": task.content,
+                "category": task.category,
+                "priority": task.priority,
+                "status": task.status,
+                "created_at": task.created_at,
+                "ai_confidence": task.ai_confidence,
+            }
+            for task in tasks
+        ]
+
+        tasks_payload = json.dumps(serialisable_tasks).replace("\n", " ")
+
+        jac_script = f'''
+import from byllm.llm {{ Model }}
+
+glob llm = Model(model_name="gemini/gemini-2.0-flash");
+
+def craft_brief(prompt: str) -> str by llm(method='Reason');
+
+with entry {{
+    prompt = """
+You are an AI sprint planner. Produce a JSON response with keys summary (string), agenda (array of items with title, details, priority, suggested_time, related_task_ids), and recommendations (array of strings).
+
+Focus on realistic scheduling guidance for the next 8 hours. Use the provided tasks as context. Keep agenda length between 2 and 5 items. related_task_ids must be an array of task IDs pulled from the input.
+
+Return ONLY valid JSON with double-quoted keys and values.
+
+Tasks JSON: {tasks_payload}
+""";
+    result = craft_brief(prompt);
+    print(result);
+}}
+'''
+
+        temp_file = "temp_ai_brief.jac"
+        with open(temp_file, "w", encoding="utf-8") as f:
+            f.write(jac_script)
+
+        try:
+            result = jac_machine.run_jac_file(temp_file)
+            parsed = parse_json_output(result)
+            if isinstance(parsed, dict):
+                agenda_items = []
+                for item in parsed.get("agenda", []):
+                    if isinstance(item, dict):
+                        agenda_items.append(
+                            {
+                                "title": str(item.get("title", "Focus block"))[:120],
+                                "details": str(item.get("details", "")),
+                                "priority": normalize_priority(item.get("priority")),
+                                "suggested_time": item.get("suggested_time"),
+                                "related_task_ids": [
+                                    str(task_id)
+                                    for task_id in item.get("related_task_ids", [])
+                                ],
+                            }
+                        )
+                    elif isinstance(item, str):
+                        agenda_items.append(
+                            {
+                                "title": item[:120],
+                                "details": "",
+                                "priority": None,
+                                "suggested_time": None,
+                                "related_task_ids": [],
+                            }
+                        )
+
+                recommendations = [
+                    str(rec).strip()
+                    for rec in parsed.get("recommendations", [])
+                    if isinstance(rec, str) and rec.strip()
+                ]
+
+                if not recommendations:
+                    recommendations = fallback_brief.get("recommendations", [])
+
+                return {
+                    "summary": str(parsed.get("summary", fallback_brief["summary"])),
+                    "agenda": agenda_items or fallback_brief.get("agenda", []),
+                    "recommendations": recommendations,
+                    "generated_at": datetime.datetime.now().isoformat(),
+                    "ai_available": True,
+                }
+        finally:
+            try:
+                os.remove(temp_file)
+            except Exception:
+                pass
+    except Exception as e:
+        print(f"AI brief generation failed: {e}")
+
+    return fallback_brief
+
+ALLOWED_CATEGORIES = {
+    "work": "Work",
+    "personal": "Personal",
+    "health": "Health",
+    "learning": "Learning",
+}
+
+ALLOWED_PRIORITIES = {
+    "high": "High",
+    "medium": "Medium",
+    "low": "Low",
+}
+
+
+def normalize_category(value: Optional[str]) -> str:
+    if not value:
+        return "Personal"
+    return ALLOWED_CATEGORIES.get(value.strip().lower(), "Personal")
+
+
+def normalize_priority(value: Optional[str]) -> str:
+    if not value:
+        return "Medium"
+    return ALLOWED_PRIORITIES.get(value.strip().lower(), "Medium")
+
+
+def priority_score(value: Optional[str]) -> int:
+    mapping = {"high": 3, "medium": 2, "low": 1}
+    return mapping.get((value or "").strip().lower(), 2)
+
+
+def clamp_confidence(value: Optional[float]) -> float:
+    try:
+        if value is None:
+            return 0.6
+        return max(0.0, min(float(value), 1.0))
+    except (TypeError, ValueError):
+        return 0.6
+
+
+def sanitise_tags(tags: Optional[List[Any]]) -> List[str]:
+    if not tags:
+        return []
+    cleaned: List[str] = []
+    for tag in tags:
+        if isinstance(tag, str):
+            trimmed = tag.strip()
+            if trimmed:
+                cleaned.append(trimmed)
+    return cleaned
+
+
+def parse_json_output(output: Any) -> Optional[Any]:
+    if output is None:
+        return None
+    text = str(output).strip()
+    if not text:
+        return None
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        match = re.search(r"(\{.*\}|\[.*\])", text, re.DOTALL)
+        if match:
+            try:
+                return json.loads(match.group(0))
+            except json.JSONDecodeError:
+                return None
+    return None
+
+
+def build_ai_result(
+    category: Optional[str],
+    priority: Optional[str],
+    reasoning: Optional[str],
+    confidence: Optional[float] = None,
+    tags: Optional[List[Any]] = None,
+) -> dict:
+    normalised_category = normalize_category(category)
+    normalised_priority = normalize_priority(priority)
+    confidence_value = clamp_confidence(confidence)
+    cleaned_tags = sanitise_tags(tags)
+    if not cleaned_tags:
+        cleaned_tags = [normalised_category]
+    detail = (reasoning or "AI analysis completed").strip()
+    return {
+        "category": normalised_category,
+        "priority": normalised_priority,
+        "reasoning": detail,
+        "confidence": confidence_value,
+        "tags": cleaned_tags,
+    }
+
 def categorize_task_with_ai(content: str) -> dict:
     """AI-powered task categorization using Jac byllm integration"""
+    fallback_result = categorize_with_fallback(content)
+
     if AI_AVAILABLE:
         try:
-            # Create a dynamic Jac script that analyzes the specific task
+            safe_content = content.replace("\\", "\\\\").replace('"', '\\"')
             jac_script = f'''
 import from byllm.llm {{ Model }}
 
 glob llm = Model(model_name="gemini/gemini-2.0-flash");
 
-def analyze_single_task(task_description: str) -> str by llm(method='Reason');
+def analyze_task(prompt: str) -> str by llm(method='Reason');
 
 with entry {{
-    task = "{content.replace('"', '\\"')}";
-    
-    # Create structured prompt for analysis
-    prompt = "Analyze this task and respond in this exact format: CATEGORY:category_name|PRIORITY:priority_level|REASONING:explanation\\n\\nTask: " + task + "\\n\\nCategories: work, personal, health, learning\\nPriorities: high, medium, low";
-    
-    result = analyze_single_task(prompt);
+    prompt = """
+You are an AI productivity coach. Analyse the following task description and return a JSON object with the keys category, priority, reasoning, confidence (0 to 1 float) and tags (array of short strings).
+
+Allowed categories: Work, Personal, Health, Learning.
+Allowed priorities: High, Medium, Low.
+
+Respond with ONLY valid JSON. Do not include markdown or commentary.
+
+Task: """ + "{safe_content}";
+    result = analyze_task(prompt);
     print(result);
 }}
 '''
-            
-            # Write temporary Jac file
+
             temp_file = "temp_task_analysis.jac"
             with open(temp_file, "w", encoding="utf-8") as f:
                 f.write(jac_script)
-            
+
             try:
-                # Execute using JacMachine
                 result = jac_machine.run_jac_file(temp_file)
-                
-                # Parse the structured output
-                category = "personal"  # default
-                priority = "medium"    # default 
-                reasoning = "AI analysis completed"
-                
-                if result and "CATEGORY:" in str(result):
-                    output = str(result)
-                    
-                    # Extract category
-                    if "CATEGORY:" in output:
-                        category_part = output.split("CATEGORY:")[1].split("|")[0].strip().lower()
-                        if category_part in ["work", "personal", "health", "learning"]:
-                            category = category_part
-                    
-                    # Extract priority
-                    if "PRIORITY:" in output:
-                        priority_part = output.split("PRIORITY:")[1].split("|")[0].strip().lower()
-                        if priority_part in ["high", "medium", "low"]:
-                            priority = priority_part
-                    
-                    # Extract reasoning
-                    if "REASONING:" in output:
-                        reasoning = output.split("REASONING:")[1].strip()
-                
-                return {
-                    "category": category,
-                    "priority": priority,
-                    "reasoning": f"AI Analysis: {reasoning}"
-                }
-                
+                parsed = parse_json_output(result)
+                if isinstance(parsed, dict):
+                    return build_ai_result(
+                        parsed.get("category"),
+                        parsed.get("priority"),
+                        parsed.get("reasoning"),
+                        parsed.get("confidence"),
+                        parsed.get("tags"),
+                    )
+                else:
+                    print("AI response was not valid JSON, falling back to heuristic result")
             except Exception as e:
                 print(f"Jac execution error: {e}")
-                # Try fallback with direct byllm approach
-                return categorize_with_simple_byllm(content)
-            
+                simple_ai = categorize_with_simple_byllm(content)
+                if simple_ai:
+                    return simple_ai
             finally:
-                # Clean up temp file
                 try:
                     os.remove(temp_file)
-                except:
+                except Exception:
                     pass
-                    
         except Exception as e:
             print(f"AI categorization failed: {e}")
-    
-    # Fallback to pattern matching
-    return categorize_with_fallback(content)
+
+    return fallback_result
 
 def categorize_with_simple_byllm(content: str) -> dict:
     """Simple byllm approach without complex Jac machine"""
@@ -181,14 +444,26 @@ with entry {{
         result = jac_machine.run_jac_file("simple_analysis.jac")
         os.remove("simple_analysis.jac")
         
-        # Simple parsing
+        parsed = parse_json_output(result)
+        if isinstance(parsed, dict):
+            return build_ai_result(
+                parsed.get("category"),
+                parsed.get("priority"),
+                parsed.get("reasoning"),
+                parsed.get("confidence"),
+                parsed.get("tags"),
+            )
+
+        # Simple parsing fallback
         if result and "," in str(result):
-            parts = str(result).split(",")
-            return {
-                "category": parts[0].strip() if len(parts) > 0 else "personal",
-                "priority": parts[1].strip() if len(parts) > 1 else "medium", 
-                "reasoning": parts[2].strip() if len(parts) > 2 else "AI quick analysis"
-            }
+            parts = [part.strip() for part in str(result).split(",")]
+            return build_ai_result(
+                parts[0] if len(parts) > 0 else None,
+                parts[1] if len(parts) > 1 else None,
+                parts[2] if len(parts) > 2 else "AI quick analysis",
+                0.6,
+                None,
+            )
             
     except Exception as e:
         print(f"Simple byllm failed: {e}")
@@ -228,11 +503,19 @@ def categorize_with_fallback(content: str) -> dict:
     elif len(content) < 20:   # Short tasks might be quick wins
         priority = "low"
         
-    return {
-        "category": category,
-        "priority": priority,
-        "reasoning": f"Pattern matching: Found keywords suggesting '{category}' category with '{priority}' priority"
-    }
+    normalised_category = normalize_category(category)
+    normalised_priority = normalize_priority(priority)
+    reasoning = (
+        f"Pattern matching suggests '{normalised_category}' with '{normalised_priority}' priority based on task keywords."
+    )
+
+    return build_ai_result(
+        normalised_category,
+        normalised_priority,
+        reasoning,
+        0.45 if normalised_priority == "Low" else 0.55,
+        ["Pattern Match", normalised_category],
+    )
 
 # Global storage (in production, use database)
 tasks_storage: List[Task] = []
@@ -308,6 +591,8 @@ async def create_task(task_data: TaskCreate):
         priority=ai_result["priority"],
         status="pending",
         ai_reasoning=ai_result["reasoning"],
+        ai_confidence=ai_result.get("confidence"),
+        ai_tags=[str(tag) for tag in ai_result.get("tags", [])],
         created_at=timestamp,
         updated_at=timestamp
     )
@@ -429,6 +714,21 @@ with entry {{
             "completion_rate": round(completion_rate, 1)
         }
 
+@app.get("/ai-brief", response_model=AIBriefResponse)
+async def get_ai_brief():
+    """Generate an AI-crafted daily brief combining agenda and recommendations."""
+    try:
+        data = generate_ai_brief(tasks_storage)
+        return AIBriefResponse(success=True, data=AIBriefData(**data))
+    except Exception as exc:
+        print(f"AI brief endpoint error: {exc}")
+        fallback = build_fallback_brief(tasks_storage)
+        return AIBriefResponse(
+            success=False,
+            data=AIBriefData(**fallback),
+            error=str(exc),
+        )
+
 @app.get("/analytics", response_model=AnalyticsResponse)
 async def get_analytics():
     """Get task analytics"""
@@ -496,6 +796,8 @@ async def startup_event():
             priority=ai_result["priority"],
             status="pending",
             ai_reasoning=ai_result["reasoning"],
+            ai_confidence=ai_result.get("confidence"),
+            ai_tags=[str(tag) for tag in ai_result.get("tags", [])],
             created_at=datetime.datetime.now().isoformat(),
             updated_at=datetime.datetime.now().isoformat()
         )

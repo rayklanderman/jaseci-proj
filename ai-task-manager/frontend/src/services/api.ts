@@ -8,6 +8,8 @@ import type {
   TaskListResponse,
   HealthCheckResponse,
   ServiceInfoResponse,
+  AIBriefResponse,
+  AIBriefData,
 } from "../types/api";
 
 // --- Helpers -----------------------------------------------------------------
@@ -73,6 +75,58 @@ function generateAiInsight(
   return "🎯 Good momentum! Keep working through your pending tasks.";
 }
 
+function buildLocalBrief(tasks: Task[]): AIBriefData {
+  const pending = tasks.filter((task) => !task.completed);
+  const completed = tasks.filter((task) => task.completed);
+
+  let summary = "No tasks logged yet. Add a few to get a personalised brief.";
+  if (tasks.length > 0) {
+    if (pending.length === 0) {
+      summary =
+        "Every task is complete. Take a breather and plan the next sprint.";
+    } else {
+      const focusCategory = pending[0]?.category ?? "Work";
+      summary = `${
+        pending.length
+      } tasks remaining. Start with your ${focusCategory.toLowerCase()} responsibilities to build momentum.`;
+    }
+  }
+
+  const agenda = pending.slice(0, 3).map((task) => ({
+    title:
+      task.description.slice(0, 80) + (task.description.length > 80 ? "…" : ""),
+    details: `${task.category} • Priority ${task.priority ?? "Medium"}`,
+    priority: task.priority ?? "Medium",
+    suggestedTime: null,
+    relatedTaskIds: [task.id],
+  }));
+
+  const recommendations: string[] = [];
+  if (pending.length && completed.length) {
+    recommendations.push(
+      "Group similar tasks to finish the remainder quickly."
+    );
+  }
+  if (pending.length > completed.length * 2) {
+    recommendations.push(
+      "Knock out one quick item, then move straight to the highest-priority task."
+    );
+  }
+  if (recommendations.length === 0) {
+    recommendations.push(
+      "Review upcoming deadlines and protect a focus block today."
+    );
+  }
+
+  return {
+    summary,
+    agenda,
+    recommendations,
+    generatedAt: new Date().toISOString(),
+    aiAvailable: false,
+  };
+}
+
 const STORAGE_KEY = "ai_task_manager_tasks";
 
 function loadTasks(): Task[] {
@@ -127,6 +181,10 @@ export const taskService = {
       completed: false,
       priority: "Medium",
       created_at: timestamp,
+      aiReasoning:
+        "Local heuristics classified this task for quick offline use.",
+      aiConfidence: 0.45,
+      aiTags: ["Local Mode"],
     };
 
     tasks.push(newTask);
@@ -249,6 +307,15 @@ export const taskService = {
         local_storage:
           "Persistent data storage in browser - no server required!",
       },
+    };
+  },
+
+  async getAIBrief(): Promise<AIBriefResponse> {
+    await delay(120);
+    const tasks = loadTasks();
+    return {
+      success: true,
+      data: buildLocalBrief(tasks),
     };
   },
 };

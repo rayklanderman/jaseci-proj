@@ -11,6 +11,9 @@ export interface Task {
   title?: string;
   due_date?: string;
   created_at?: string;
+  aiReasoning?: string;
+  aiConfidence?: number;
+  aiTags?: string[];
 }
 
 export interface TaskStats {
@@ -35,6 +38,28 @@ export interface TaskResponse {
   message?: string;
   error?: string;
   task_id?: TaskId;
+}
+
+export interface AIBriefAgendaItem {
+  title: string;
+  details: string;
+  priority?: "High" | "Medium" | "Low" | null;
+  suggestedTime?: string | null;
+  relatedTaskIds: TaskId[];
+}
+
+export interface AIBriefData {
+  summary: string;
+  agenda: AIBriefAgendaItem[];
+  recommendations: string[];
+  generatedAt: string;
+  aiAvailable: boolean;
+}
+
+export interface AIBriefResponse {
+  success: boolean;
+  data: AIBriefData;
+  error?: string;
 }
 
 export interface CreateTaskRequest {

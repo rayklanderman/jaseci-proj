@@ -6,6 +6,7 @@ import type {
   HealthCheckResponse,
   ServiceInfoResponse,
   TaskId,
+  AIBriefResponse,
 } from "../types/api";
 
 const isDev = import.meta.env.DEV;
@@ -18,6 +19,9 @@ interface BackendTaskPayload {
   status: "pending" | "in-progress" | "completed";
   due_date?: string;
   created_at?: string;
+  ai_reasoning?: string;
+  ai_confidence?: number;
+  ai_tags?: string[];
 }
 
 interface BackendTaskEnvelope {
@@ -67,14 +71,37 @@ async function apiCall<T>(
 
 // Convert backend task format to frontend format
 function convertBackendTask(backendTask: BackendTaskPayload): Task {
+  const categoryMap: Record<string, Task["category"]> = {
+    work: "Work",
+    personal: "Personal",
+    health: "Health",
+    learning: "Learning",
+  };
+
+  const priorityMap: Record<string, Task["priority"]> = {
+    high: "High",
+    medium: "Medium",
+    low: "Low",
+  };
+
+  const normalisedCategory =
+    categoryMap[backendTask.category?.toString().toLowerCase()] || "General";
+  const normalisedPriority = backendTask.priority
+    ? priorityMap[backendTask.priority.toString().toLowerCase()] ||
+      backendTask.priority
+    : undefined;
+
   return {
     id: String(backendTask.id) as TaskId,
     description: backendTask.content,
-    category: backendTask.category,
+    category: normalisedCategory,
     completed: backendTask.status === "completed",
-    priority: backendTask.priority,
+    priority: normalisedPriority,
     due_date: backendTask.due_date,
     created_at: backendTask.created_at,
+    aiReasoning: backendTask.ai_reasoning ?? undefined,
+    aiConfidence: backendTask.ai_confidence ?? undefined,
+    aiTags: backendTask.ai_tags ?? [],
   };
 }
 
@@ -220,6 +247,81 @@ export const backendTaskService = {
         success: false,
         error: error instanceof Error ? error.message : "Unknown error",
         task_id: taskId,
+      };
+    }
+  },
+
+  async getAIBrief(): Promise<AIBriefResponse> {
+    interface BackendAIBriefEnvelope {
+      success: boolean;
+      data: {
+        summary: string;
+        agenda: Array<{
+          title: string;
+          details: string;
+          priority?: string | null;
+          suggested_time?: string | null;
+          related_task_ids?: Array<string | number>;
+        }>;
+        recommendations: string[];
+        generated_at: string;
+        ai_available: boolean;
+      };
+      error?: string;
+    }
+
+    const fallback: AIBriefResponse = {
+      success: false,
+      data: {
+        summary: "AI brief is temporarily unavailable.",
+        agenda: [],
+        recommendations: [
+          "Refresh the page or retry once the Jac backend is reachable.",
+        ],
+        generatedAt: new Date().toISOString(),
+        aiAvailable: false,
+      },
+    };
+
+    try {
+      const response = await apiCall<BackendAIBriefEnvelope>("/ai-brief");
+      const agenda = response.data.agenda.map((item) => {
+        const normalisedPriority = item.priority
+          ? ((item.priority.charAt(0).toUpperCase() +
+              item.priority.slice(1).toLowerCase()) as
+              | "High"
+              | "Medium"
+              | "Low")
+          : null;
+
+        return {
+          title: item.title,
+          details: item.details,
+          priority: normalisedPriority,
+          suggestedTime: item.suggested_time ?? null,
+          relatedTaskIds: (item.related_task_ids ?? []).map(
+            (id) => String(id) as TaskId
+          ),
+        };
+      });
+
+      return {
+        success: response.success,
+        data: {
+          summary: response.data.summary,
+          agenda,
+          recommendations: response.data.recommendations,
+          generatedAt: response.data.generated_at,
+          aiAvailable: response.data.ai_available,
+        },
+        error: response.error,
+      };
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unable to generate AI brief";
+      return {
+        ...fallback,
+        error: message,
       };
     }
   },

@@ -7,6 +7,7 @@ import type {
   HealthCheckResponse,
   ServiceInfoResponse,
   TaskId,
+  AIBriefResponse,
 } from "../types/api";
 
 import backendDetector, { type BackendStatus } from "./backendDetector";
@@ -195,6 +196,23 @@ class AutoSwitchingTaskService {
    */
   async refreshBackendStatus(): Promise<BackendStatus> {
     return await backendDetector.forceCheck();
+  }
+
+  async getAIBrief(): Promise<AIBriefResponse> {
+    if (backendDetector.useJacBackend()) {
+      try {
+        if (isDev) console.log("🚀 Using Jac backend for AI brief");
+        return await backendTaskService.getAIBrief();
+      } catch (error) {
+        console.warn(
+          "⚠️ Jac backend AI brief failed, falling back to local mode:",
+          error
+        );
+      }
+    }
+
+    if (isDev) console.log("📱 Using local mode brief");
+    return await localTaskService.getAIBrief();
   }
 }
 
