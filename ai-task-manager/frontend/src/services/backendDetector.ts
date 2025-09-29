@@ -24,14 +24,17 @@ class BackendDetectionService {
 
   // Dynamic backend URL detection
   private getBackendUrl(): string {
-    // In production (Vercel), use /api prefix for serverless functions
+    const configuredUrl = import.meta.env.VITE_BACKEND_BASE_URL?.trim();
+    if (configuredUrl) {
+      return configuredUrl.replace(/\/$/, "");
+    }
+
     if (
       window.location.hostname !== "localhost" &&
       window.location.hostname !== "127.0.0.1"
     ) {
       return window.location.origin + "/api";
     }
-    // In development, use localhost:8000
     return "http://localhost:8000";
   }
 
