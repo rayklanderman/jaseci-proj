@@ -21,30 +21,20 @@ uvicorn main:app --reload
 
 The API is then available at `http://127.0.0.1:8000` with interactive docs at `/docs`.
 
-## Render (CLI) Deployment
+## Railway Deployment (Recommended)
 
-This repository now includes a `render.yaml` blueprint that provisions the backend as a Render Web Service. Deployment steps:
+Railway can build and run the FastAPI service directly from this repository without any extra CLI tooling:
 
-```bash
-# 1) Install the Render CLI
-npm install -g render-cli
+1. Sign in at [railway.app](https://railway.app) and create a new project.
+2. Choose **Deploy from GitHub** and select `rayklanderman/jaseci-proj`.
+3. When prompted, set the service root to `ai-task-manager/backend`.
+4. Confirm (or set) the build/start commands:
+   - **Build:** `pip install --upgrade pip && pip install -r requirements.txt`
+   - **Start:** `uvicorn main:app --host 0.0.0.0 --port $PORT`
+5. Add the required environment variables (at minimum `GEMINI_API_KEY`).
+6. Deploy — Railway will provision the service and expose a public URL you can share with the frontend.
 
-# 2) Authenticate
-render login
-
-# 3) Launch the service from the repo root
-render blueprint launch render.yaml --name ai-task-manager-backend
-
-# 4) Set required secrets (after the service is created)
-render env set ai-task-manager-backend GEMINI_API_KEY <your-key>
-
-# 5) Trigger a deploy when needed
-render deploy ai-task-manager-backend
-```
-
-Render will build from `ai-task-manager/backend`, install `requirements.txt`, and run `uvicorn main:app --host 0.0.0.0 --port $PORT` automatically. Subsequent pushes to the tracked branch trigger auto-deploys unless disabled.
-
-> ℹ️ The frontend continues to use **Yarn** as the package manager. Keep `yarn` commands for the Vite project and `pip` for the FastAPI backend.
+Once deployed, update the Vercel project with `VITE_BACKEND_BASE_URL=<railway-url>` so the React app uses the hosted backend. The frontend continues to rely on **Yarn**; keep `yarn` commands for the Vite workspace and `pip` for this FastAPI service.
 
 ## Alternate Deployment Targets
 
