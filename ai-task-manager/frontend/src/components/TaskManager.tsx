@@ -390,41 +390,133 @@ const TaskManager: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 relative overflow-hidden">
-      {/* Background decoration */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-blue-400/20 to-purple-600/20 rounded-full blur-3xl"></div>
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-tr from-emerald-400/20 to-blue-600/20 rounded-full blur-3xl"></div>
+    <div className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top,_rgba(99,102,241,0.18)_0,_rgba(226,232,240,0.92)_40%,_rgba(248,250,252,1)_75%)] text-slate-800">
+      <div className="pointer-events-none absolute inset-0">
+        <div className="absolute -top-28 left-1/2 h-96 w-96 -translate-x-1/2 rounded-full bg-brand-500/20 blur-3xl" />
+        <div className="absolute -bottom-40 right-1/3 h-80 w-80 rounded-full bg-cyan-300/20 blur-3xl" />
       </div>
 
-      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <div className="flex items-center justify-between mb-6">
-            <div className="inline-flex items-center gap-4">
-              <div className="p-3 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl shadow-xl">
-                <span className="text-2xl">🤖</span>
+      <div className="relative z-10 mx-auto flex max-w-6xl flex-col gap-12 px-4 py-12 sm:px-6 lg:px-8">
+        <header className="grid items-start gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
+          <div className="relative overflow-hidden rounded-4xl border border-white/60 bg-surface-100 p-10 shadow-card backdrop-blur-xl">
+            <div
+              className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-brand-500/20 blur-3xl"
+              aria-hidden="true"
+            />
+            <div className="inline-flex items-center gap-2 rounded-full bg-brand-50 px-3 py-1 text-sm font-medium text-brand-600">
+              <span>AI Productivity Workspace</span>
+              <span className="h-1.5 w-1.5 rounded-full bg-brand-500"></span>
+            </div>
+            <h1 className="mt-6 font-display text-4xl tracking-tight text-slate-900 sm:text-5xl">
+              AI Task Manager
+            </h1>
+            <p className="mt-4 max-w-xl text-lg text-slate-600">
+              Orchestrate tasks, insights, and intelligent reminders inside a
+              calm, professional dashboard powered by Tailwind CSS 4.
+            </p>
+
+            <div className="mt-8 flex flex-wrap gap-4">
+              <div className="flex items-center gap-3 rounded-2xl border border-white/60 bg-white/80 px-4 py-3 text-sm text-slate-600 shadow-sm backdrop-blur">
+                <span className="grid h-9 w-9 place-items-center rounded-xl bg-brand-500/10 text-xl text-brand-600">
+                  🤖
+                </span>
+                <div>
+                  <p className="font-medium text-slate-900">
+                    Jac AI integration
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    Real-time enrichment & categorisation
+                  </p>
+                </div>
               </div>
-              <div className="text-left">
-                <h1 className="text-4xl font-black bg-gradient-to-r from-slate-800 via-indigo-600 to-purple-600 bg-clip-text text-transparent">
-                  AI Task Manager
-                </h1>
-                <p className="text-xl text-slate-600 mt-2 font-medium">
-                  Intelligent productivity with AI-powered insights
+
+              <div className="flex items-center gap-3 rounded-2xl border border-white/60 bg-white/70 px-4 py-3 text-sm text-slate-600 shadow-sm backdrop-blur">
+                <span className="grid h-9 w-9 place-items-center rounded-xl bg-emerald-500/10 text-xl text-emerald-600">
+                  🔔
+                </span>
+                <div>
+                  <p className="font-medium text-slate-900">Smart reminders</p>
+                  <p className="text-xs text-slate-500">
+                    Service worker & notifications enabled
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-col items-stretch gap-6">
+            <div className="flex items-center justify-end">
+              <button
+                onClick={toggleTheme}
+                className="flex items-center gap-3 rounded-full border border-white/50 bg-white/80 px-4 py-2 text-sm font-medium text-slate-700 shadow-sm backdrop-blur transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-md"
+                title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+              >
+                <span className="grid h-8 w-8 place-items-center rounded-full bg-slate-900 text-white">
+                  {theme === "dark" ? "☀️" : "🌙"}
+                </span>
+                <span>Toggle theme</span>
+              </button>
+            </div>
+
+            <div className="relative overflow-hidden rounded-3xl border border-white/60 bg-white/75 p-6 shadow-card backdrop-blur">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-sm uppercase tracking-[0.18em] text-slate-400">
+                    Next steps
+                  </p>
+                  <p className="mt-2 text-lg font-semibold text-slate-900">
+                    Add tasks or import a curated template to get started.
+                  </p>
+                </div>
+                <svg
+                  className="h-12 w-12 text-brand-500"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M13 7l5 5m0 0l-5 5m5-5H6"
+                  />
+                </svg>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <section className="rounded-4xl border border-white/60 bg-white/80 p-6 shadow-card backdrop-blur">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="flex items-center gap-4">
+              <span className="grid h-11 w-11 place-items-center rounded-2xl bg-brand-500/10 text-2xl">
+                🧠
+              </span>
+              <div>
+                <p className="text-sm font-semibold text-slate-700">
+                  AI-enhanced scheduling
+                </p>
+                <p className="text-sm text-slate-500">
+                  Smart Date Parser now respects natural phrases with adaptive
+                  confidence.
                 </p>
               </div>
             </div>
-
-            {/* Theme Toggle Button */}
-            <button
-              onClick={toggleTheme}
-              className="p-3 bg-white/70 backdrop-blur-xl border border-gray-200 rounded-xl shadow-lg hover:bg-white/90 transition-all duration-200"
-              title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
-            >
-              <span className="text-xl">{theme === "dark" ? "☀️" : "🌙"}</span>
-            </button>
+            <div className="flex items-center gap-4">
+              <span className="grid h-11 w-11 place-items-center rounded-2xl bg-emerald-500/10 text-2xl">
+                🌐
+              </span>
+              <div>
+                <p className="text-sm font-semibold text-slate-700">
+                  Deploy-ready service worker
+                </p>
+                <p className="text-sm text-slate-500">
+                  Caches Vite assets safely while bypassing live API responses.
+                </p>
+              </div>
+            </div>
           </div>
-        </div>
+        </section>
 
         {/* Backend Status Indicator */}
         {backendStatus && (
@@ -695,6 +787,7 @@ const TaskManager: React.FC = () => {
                       type="date"
                       value={selectedDate}
                       onChange={(e) => setSelectedDate(e.target.value)}
+                      aria-label="Task due date"
                       className="w-full px-4 py-3 bg-white/90 border-2 border-slate-200/50 rounded-xl focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all duration-300"
                     />
                   </div>
@@ -706,6 +799,7 @@ const TaskManager: React.FC = () => {
                       type="time"
                       value={selectedTime}
                       onChange={(e) => setSelectedTime(e.target.value)}
+                      aria-label="Task due time"
                       className="w-full px-4 py-3 bg-white/90 border-2 border-slate-200/50 rounded-xl focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all duration-300"
                     />
                   </div>
