@@ -20,6 +20,7 @@
 1. **Railway Environment**
    - Provision PostgreSQL plugin → copy `DATABASE_URL` (`postgresql+psycopg://` format)
    - Set `GEMINI_API_KEY`, `DATABASE_URL`, `FRONTEND_ORIGINS`
+   - (Optional) Add `FRONTEND_ORIGIN_REGEX` such as `https://.*\.vercel\.app` to permit new Vercel subdomains automatically
    - Trigger deploy and verify `/HealthCheck`
 2. **Vercel Environment**
    - Set `VITE_BACKEND_BASE_URL` to the Railway URL

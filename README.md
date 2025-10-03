@@ -2,8 +2,6 @@
 
 **A comprehensive demonstration of modern AI-powered development using the Jac programming language and the Jaseci framework, featuring a production-ready full-stack AI Task Manager application.**
 
----
-
 ## 🎯 **What is This Project?**
 
 This repository showcases the **Jaseci framework** and **Jac programming language** - a revolutionary approach to AI-native software development. It includes:
@@ -220,7 +218,7 @@ The **AI Task Manager** demonstrates Jac's capabilities in a real-world applicat
 
 #### **☁️ Production Deployment**
 
-- **Vercel Deployment**: Live at [https://aitask-mjgzgp05y-teamdevray.vercel.app](https://aitask-mjgzgp05y-teamdevray.vercel.app)
+- **Vercel Deployment**: Live at [https://ai-task-manager-rho.vercel.app/](https://ai-task-manager-rho.vercel.app/)
 - **Docker Ready**: Backend containerization support
 - **Environment Management**: Proper API key and configuration handling
 - **Health Monitoring**: Built-in health checks and monitoring
@@ -296,7 +294,7 @@ railway link                       # if the service is not already linked
 railway variables set \
   GEMINI_API_KEY=your-key \
   DATABASE_URL=postgresql+psycopg://user:pass@host:port/db \
-  FRONTEND_ORIGINS=https://ai-task-manager-m4tueu6bm-teamdevray.vercel.app
+  FRONTEND_ORIGINS=https://ai-task-manager-rho.vercel.app
 railway up                         # builds and deploys the FastAPI service
 ```
 
@@ -389,6 +387,19 @@ jac run test_gemini_integration.jac
 
 ---
 
+## 🔒 **Security & Secret Management**
+
+This project is intentionally public for evaluation and learning, so all sensitive values must stay outside the repository:
+
+- Store API keys (for example `GEMINI_API_KEY`, `DATABASE_URL`) only in environment variables or the managed secrets UI on Vercel and Railway.
+- Duplicate `.env.example` locally and keep your real `.env` out of version control (already covered by `.gitignore`).
+- Run a secret scan before pushing. We recommend installing [`git-secrets`](https://github.com/awslabs/git-secrets) or [`gitleaks`](https://github.com/gitleaks/gitleaks) and running `git secrets --scan` / `gitleaks detect` when contributing.
+- Rotate credentials if anything is exposed, and audit access logs on both Railway and Vercel after major deployments.
+
+See [`SECURITY.md`](./SECURITY.md) for a full checklist covering deployment hardening, secret rotation, and incident response tips.
+
+---
+
 ## 🤝 **Contributing**
 
 We welcome contributions to improve the tutorial materials, add more Jac examples, or enhance the AI Task Manager application!
@@ -412,7 +423,7 @@ This project is for educational purposes and showcasing the Jaseci framework and
 
 ## 🚀 **Live Demo**
 
-**🌐 Experience the AI Task Manager:** [https://aitask-mjgzgp05y-teamdevray.vercel.app](https://aitask-mjgzgp05y-teamdevray.vercel.app)
+**🌐 Experience the AI Task Manager:** [https://ai-task-manager-rho.vercel.app/](https://ai-task-manager-rho.vercel.app/)
 
 Try both modes:
 

@@ -19,6 +19,11 @@ const isDev = import.meta.env.DEV;
 class AutoSwitchingTaskService {
   private static pollerHandle: number | null = null;
   private readonly pollIntervalMs = 1000;
+  private readonly explicitBackendConfigured = Boolean(
+    import.meta.env.VITE_BACKEND_BASE_URL?.trim()
+  );
+  private lastBackendSuccess = false;
+  private lastBackendFailureAt: number | null = null;
 
   constructor() {
     // Auto-update backend detection in the background
@@ -33,21 +38,88 @@ class AutoSwitchingTaskService {
     backendDetector.getStatus();
   }
 
+  private isBackendCooldownOver(): boolean {
+    if (this.lastBackendFailureAt === null) {
+      return true;
+    }
+    const COOLDOWN_MS = 10_000;
+    return Date.now() - this.lastBackendFailureAt > COOLDOWN_MS;
+  }
+
+  private shouldAttemptBackend(): boolean {
+    const status = backendDetector.getStatus();
+    const backendAvailable =
+      status.isAvailable && status.mode === "jac-backend";
+
+    if (backendAvailable) {
+      return true;
+    }
+
+    if (this.lastBackendSuccess && this.isBackendCooldownOver()) {
+      return true;
+    }
+
+    if (this.explicitBackendConfigured && this.isBackendCooldownOver()) {
+      return true;
+    }
+
+    return false;
+  }
+
+  private recordBackendSuccess(): void {
+    this.lastBackendSuccess = true;
+    this.lastBackendFailureAt = null;
+  }
+
+  private recordBackendFailure(): void {
+    this.lastBackendSuccess = false;
+    this.lastBackendFailureAt = Date.now();
+  }
+
+  private shouldFallbackToLocal(error?: string): boolean {
+    if (!error) {
+      return false;
+    }
+
+    const message = error.toLowerCase();
+
+    if (message.includes("404") || message.includes("400")) {
+      return false;
+    }
+
+    return (
+      message.includes("failed to fetch") ||
+      message.includes("network") ||
+      message.includes("timeout") ||
+      message.includes("cors") ||
+      message.includes("503") ||
+      message.includes("typeerror") ||
+      message.includes("api error: 5")
+    );
+  }
+
   /**
    * Create task (auto-switching)
    */
   async createTask(description: string): Promise<TaskResponse> {
-    if (backendDetector.useJacBackend()) {
-      try {
+    if (this.shouldAttemptBackend()) {
+      const response = await backendTaskService.createTask(description);
+
+      if (response.success) {
         if (isDev) console.log("🚀 Using Jac backend for task creation");
-        return await backendTaskService.createTask(description);
-      } catch (error) {
-        console.warn(
-          "⚠️ Jac backend failed, falling back to local mode:",
-          error
-        );
-        // Fall through to local mode
+        this.recordBackendSuccess();
+        return response;
       }
+
+      this.recordBackendFailure();
+      if (!this.shouldFallbackToLocal(response.error)) {
+        return response;
+      }
+
+      console.warn(
+        "⚠️ Jac backend createTask failed, attempting local fallback:",
+        response.error
+      );
     }
 
     // Local mode fallback
@@ -62,23 +134,22 @@ class AutoSwitchingTaskService {
     const backendStatus = backendDetector.getStatus();
     if (isDev) {
       console.log("🔍 Debug - Backend status for getTasks:", backendStatus);
-      console.log(
-        "🔍 Debug - useJacBackend():",
-        backendDetector.useJacBackend()
-      );
+      console.log("🔍 Debug - last backend success:", this.lastBackendSuccess);
     }
 
-    if (backendDetector.useJacBackend()) {
-      try {
+    if (this.shouldAttemptBackend()) {
+      const response = await backendTaskService.getTasks();
+
+      if (response.success) {
         if (isDev) console.log("🚀 Using Jac backend for task list");
-        return await backendTaskService.getTasks();
-      } catch (error) {
-        console.warn(
-          "⚠️ Jac backend failed, falling back to local mode:",
-          error
-        );
-        // Fall through to local mode
+        this.recordBackendSuccess();
+        return response;
       }
+
+      this.recordBackendFailure();
+      console.warn(
+        "⚠️ Jac backend getTasks failed, falling back to local mode"
+      );
     }
 
     // Local mode fallback
@@ -90,17 +161,24 @@ class AutoSwitchingTaskService {
    * Complete task (auto-switching)
    */
   async completeTask(taskId: TaskId): Promise<TaskResponse> {
-    if (backendDetector.useJacBackend()) {
-      try {
+    if (this.shouldAttemptBackend()) {
+      const response = await backendTaskService.completeTask(taskId);
+
+      if (response.success) {
         if (isDev) console.log("🚀 Using Jac backend for task completion");
-        return await backendTaskService.completeTask(taskId);
-      } catch (error) {
-        console.warn(
-          "⚠️ Jac backend failed, falling back to local mode:",
-          error
-        );
-        // Fall through to local mode
+        this.recordBackendSuccess();
+        return response;
       }
+
+      this.recordBackendFailure();
+      if (!this.shouldFallbackToLocal(response.error)) {
+        return response;
+      }
+
+      console.warn(
+        "⚠️ Jac backend completeTask failed, attempting local fallback:",
+        response.error
+      );
     }
 
     // Local mode fallback
@@ -112,17 +190,24 @@ class AutoSwitchingTaskService {
    * Delete task (auto-switching)
    */
   async deleteTask(taskId: TaskId): Promise<TaskResponse> {
-    if (backendDetector.useJacBackend()) {
-      try {
+    if (this.shouldAttemptBackend()) {
+      const response = await backendTaskService.deleteTask(taskId);
+
+      if (response.success) {
         if (isDev) console.log("🚀 Using Jac backend for task deletion");
-        return await backendTaskService.deleteTask(taskId);
-      } catch (error) {
-        console.warn(
-          "⚠️ Jac backend failed, falling back to local mode:",
-          error
-        );
-        // Fall through to local mode
+        this.recordBackendSuccess();
+        return response;
       }
+
+      this.recordBackendFailure();
+      if (!this.shouldFallbackToLocal(response.error)) {
+        return response;
+      }
+
+      console.warn(
+        "⚠️ Jac backend deleteTask failed, attempting local fallback:",
+        response.error
+      );
     }
 
     // Local mode fallback

@@ -1,7 +1,7 @@
 {
   "version": 2,
   "outputDirectory": "dist",
-  "buildCommand": "if [ -f package.json ]; then yarn install && yarn build; else rm -rf dist && cd frontend && yarn install && yarn build && cp -r dist ../dist; fi",
+  "buildCommand": "yarn install && yarn build",
   "framework": null,
   "rewrites": [
     {

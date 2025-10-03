@@ -9,6 +9,7 @@ Create a `.env` file (or configure variables directly in your platform) using th
 - `GEMINI_API_KEY` – required for Google Gemini access through JacMachine/byllm.
 - `DATABASE_URL` – SQLModel connection string. Defaults to local SQLite when omitted; use PostgreSQL for production (e.g. `postgresql+psycopg://user:pass@host:5432/dbname`).
 - `FRONTEND_ORIGINS` – comma-separated list of allowed origins for CORS (e.g. your Vercel deployment and custom domains).
+- `FRONTEND_ORIGIN_REGEX` – optional regex (e.g. `https://.*\\.vercel\\.app`) to allow wildcard subdomains without updating the list every deploy.
 - `PORT` – optional port override for hosts that inject a port (defaults to `8000`).
 
 ## Local Development

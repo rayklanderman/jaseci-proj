@@ -595,6 +595,12 @@ const TaskManager: React.FC = () => {
   }, [loadTasks]);
 
   useEffect(() => {
+    if (backendStatus?.isAvailable) {
+      void loadTasks();
+    }
+  }, [backendStatus?.isAvailable, loadTasks]);
+
+  useEffect(() => {
     const updateStatus = () => {
       setBackendStatus(autoSwitchingTaskService.getBackendStatus());
     };

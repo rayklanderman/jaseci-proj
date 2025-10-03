@@ -121,10 +121,13 @@ allowed_origins = (
     if configured_origins
     else default_origins
 )
+origin_regex_env = os.getenv("FRONTEND_ORIGIN_REGEX", "").strip()
+allow_origin_regex = origin_regex_env or None
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
+    allow_origin_regex=allow_origin_regex,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
