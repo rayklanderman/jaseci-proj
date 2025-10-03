@@ -1,30 +1,37 @@
 # Deployment Status
 
-## Latest Update: September 27, 2025 - � FIXED SECRET REFERENCE ERROR
+## Latest Update: October 2, 2025 – Split Deployment Ready
 
-✅ **Root vercel.json DELETED** - No more schema conflicts
-✅ **Correct vercel.json active** - Located in ai-task-manager/
-✅ **GitHub integration ready** - All changes pushed
-✅ **SECRET REFERENCE FIXED** - Removed @gemini_api_key from vercel.json
-🔄 **Triggering deployment without secret reference**
+✅ **Backend refactor deployed locally** – FastAPI now persists tasks with SQLModel + PostgreSQL
+✅ **Environment templates committed** – `.env.example` files for backend and frontend published
+✅ **Railway target locked** – Service root `ai-task-manager/backend`, PostgreSQL add-on required
+✅ **Vercel frontend** – Build remains `ai-task-manager/frontend`
+🔄 **Pending rollout** – Needs final env configuration and redeploy on both platforms
 
-## Configuration Summary
+## Current Architecture
 
-- **Root Directory**: `ai-task-manager`
-- **Frontend Build**: `@vercel/static-build` from `frontend/package.json`
-- **Backend API**: `@vercel/python` from `backend/main.py`
-- **Routes**: `/api/*` → backend, `/*` → frontend
-- **Environment**: Configure GEMINI_API_KEY directly in Vercel Dashboard (not as secret)
+- **Frontend**: Vercel (Static build from `frontend`, uses `VITE_BACKEND_BASE_URL`)
+- **Backend**: Railway (FastAPI service with Jac AI + PostgreSQL persistence)
+- **CORS**: Controlled via `FRONTEND_ORIGINS`
+- **Wakefulness**: UptimeRobot recommended for free-tier Railway services
 
-## What Was Fixed
+## Immediate Actions
 
-- Removed `"env": { "GEMINI_API_KEY": "@gemini_api_key" }` from vercel.json
-- Environment variables should be set in Vercel Dashboard, not referenced in config
+1. **Railway Environment**
+   - Provision PostgreSQL plugin → copy `DATABASE_URL` (`postgresql+psycopg://` format)
+   - Set `GEMINI_API_KEY`, `DATABASE_URL`, `FRONTEND_ORIGINS`
+   - Trigger deploy and verify `/HealthCheck`
+2. **Vercel Environment**
+   - Set `VITE_BACKEND_BASE_URL` to the Railway URL
+   - Redeploy frontend so runtime bundles receive the new URL
+3. **Reliability**
+   - Configure an UptimeRobot HTTP monitor (5-minute interval) targeting the Railway URL
+   - Optional: enable Railway volume for SQLite fallback if Postgres is unavailable
 
-## Next Steps
+## Verification Checklist
 
-1. This deployment should succeed without secret reference error
-2. Add GEMINI_API_KEY as regular environment variable in Vercel Dashboard
-3. Backend will access it via standard environment variables
-
-This file was updated to trigger deployment after fixing secret reference - attempt #3.
+- [ ] Railway deploy green with PostgreSQL
+- [ ] `/HealthCheck` returns `healthy`
+- [ ] Vercel build succeeds with new env var
+- [ ] Frontend fetches tasks from Railway in production
+- [ ] UptimeRobot monitor online

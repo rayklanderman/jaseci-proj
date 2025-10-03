@@ -41,6 +41,29 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
+  const requestUrl = new URL(event.request.url);
+  const isSameOrigin = requestUrl.origin === self.location.origin;
+  const isApiRequest =
+    !isSameOrigin ||
+    requestUrl.pathname.startsWith("/api") ||
+    requestUrl.pathname.startsWith("/tasks") ||
+    requestUrl.pathname.startsWith("/HealthCheck") ||
+    requestUrl.pathname.startsWith("/health") ||
+    requestUrl.pathname.startsWith("/ai-");
+
+  if (isApiRequest) {
+    event.respondWith(
+      fetch(event.request).catch((error) => {
+        console.log("⚠️ API request failed, no cache fallback:", error);
+        return new Response(JSON.stringify({ error: "Network unavailable" }), {
+          headers: { "Content-Type": "application/json" },
+          status: 503,
+        });
+      })
+    );
+    return;
+  }
+
   event.respondWith(
     caches
       .match(event.request)
@@ -58,10 +81,6 @@ self.addEventListener("fetch", (event) => {
               networkResponse.status !== 200 ||
               networkResponse.type !== "basic"
             ) {
-              return networkResponse;
-            }
-
-            if (event.request.url.includes("/api/")) {
               return networkResponse;
             }
 

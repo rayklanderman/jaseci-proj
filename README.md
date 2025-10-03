@@ -26,7 +26,7 @@ This repository showcases the **Jaseci framework** and **Jac programming languag
 
 ## 📁 **Project Architecture**
 
-```
+```text
 jaseci-proj/
 ├── 📚 JAC LANGUAGE LEARNING (Core Framework)
 │   ├── guess_game1.jac → guess_game6.jac    # Step-by-step Jac tutorial
@@ -275,27 +275,40 @@ python main.py  # FastAPI + Jac integration
 
 ### **🚀 Production Deployment**
 
-#### **Frontend (Vercel)**
+#### **Frontend (Vercel CLI)**
 
-```bash
-# Build and deploy
+```powershell
+cd ai-task-manager/frontend
+yarn install --frozen-lockfile
 yarn build
-vercel --prod  # Automatic deployment
-
-# Or connect GitHub repo for auto-deploy
+vercel deploy --prod
 ```
 
-#### **Backend (Cloud Platforms)**
+- Set `VITE_BACKEND_BASE_URL` in Vercel → Project Settings → Environment Variables to your Railway URL (e.g. `https://your-ai-task-manager.up.railway.app`). Redeploy after changes so the bundle receives the new value.
+- If the Vercel CLI is not linked yet, run `vercel link` once inside `ai-task-manager/frontend`.
+- After deployment, open the live URL and perform a hard refresh (`Shift+Reload`) to activate the newest service worker.
 
-```bash
-# Docker deployment
-docker build -t jac-task-manager .
-docker run -p 8000:8000 jac-task-manager
+#### **Backend (Railway CLI)**
 
-# Railway/Heroku deployment
-git push railway main    # Auto-deploy Jac service
-git push heroku main     # Auto-deploy to Heroku
+```powershell
+cd ai-task-manager/backend
+railway link                       # if the service is not already linked
+railway variables set \
+  GEMINI_API_KEY=your-key \
+  DATABASE_URL=postgresql+psycopg://user:pass@host:port/db \
+  FRONTEND_ORIGINS=https://ai-task-manager-m4tueu6bm-teamdevray.vercel.app
+railway up                         # builds and deploys the FastAPI service
 ```
+
+- Copy the template from `ai-task-manager/backend/.env.example` when configuring Railway variables. For local development, duplicate it into `.env`.
+- Provision the managed PostgreSQL add-on in Railway and use the SQLAlchemy-style connection string for `DATABASE_URL`.
+- After each deploy, verify the service by hitting `https://<your-railway-domain>/HealthCheck`.
+- Optional: add an UptimeRobot monitor to keep the free-tier container awake.
+
+#### **Other Targets**
+
+- **Docker**: `docker build -t jac-task-manager .` then `docker run -p 8000:8000 jac-task-manager`
+- **Render / Fly.io / Cloud Run**: Install requirements from `ai-task-manager/backend/requirements.txt` and start with `uvicorn main:app --host 0.0.0.0 --port $PORT`.
 
 ### **🔑 AI Integration Setup**
 
@@ -475,7 +488,7 @@ jac run hello.jac
 
 **Output:**
 
-```
+```text
 Hello, Jac World!
 ```
 
@@ -525,7 +538,7 @@ jac run multiple_entry.jac
 
 **Output:**
 
-```
+```text
 Hello first entry block!
 Hello second entry block!
 Hello third entry block!
@@ -542,7 +555,7 @@ Hello third entry block!
 
 ## Project Structure
 
-```
+```text
 jaseci-proj/
 ├── .gitignore              # Git ignore rules
 ├── README.md               # This file
@@ -551,8 +564,8 @@ jaseci-proj/
 ├── multiple_entry.jac      # Multiple entry blocks example
 └── venv/                   # Virtual environment with jaclang installed
     ├── Scripts/            # Python executables and scripts
-    ├── Lib/                # Installed packages
-    └── pyvenv.cfg          # Virtual environment configuration
+  ├── Lib/                # Installed packages
+  └── pyvenv.cfg          # Virtual environment configuration
 ```
 
 ## Dependencies

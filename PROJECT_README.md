@@ -4,7 +4,7 @@ A comprehensive project demonstrating modern AI-powered task management using **
 
 ## 📁 Project Structure
 
-```
+```text
 jaseci-proj/
 ├── 📚 JAC TUTORIAL FILES (Learning & Reference)
 │   ├── guess_game1.jac → guess_game6.jac    # Step-by-step tutorial progression
@@ -50,9 +50,9 @@ jaseci-proj/
 
 ### ⚡ **Technical Excellence**
 
-- **Jac Language Backend**: Cutting-edge graph-based programming
+- **FastAPI + Jac Integration**: Python service layers concert with Jac AI walkers
 - **Walker Architecture**: Scalable service-ready design
-- **Local Storage**: Persistent task data without backend dependency
+- **Database Persistence**: SQLModel + PostgreSQL (Railway) with SQLite fallback locally
 - **Modern Tooling**: Vite, Yarn, Tailwind CSS, TypeScript
 
 ## 🛠️ Quick Start
@@ -80,7 +80,7 @@ yarn install
 yarn dev
 ```
 
-**🌐 Open http://localhost:5173/ to see your AI Task Manager!**
+**🌐 Open <http://localhost:5173/> to see your AI Task Manager!**
 
 ### 🧠 Test Jac Backend
 
@@ -126,11 +126,8 @@ This project demonstrates the complete Jac learning journey:
 
 ### 🧠 **Backend Deployment**
 
-The Jac backends are ready for cloud deployment:
-
-- **Railway**: For Jac service hosting
-- **Heroku**: Python-compatible platform
-- **Google Cloud**: Enterprise-grade scaling
+- **Railway (Recommended)**: Deploy `ai-task-manager/backend` with PostgreSQL add-on, set `GEMINI_API_KEY`, `DATABASE_URL`, and `FRONTEND_ORIGINS`.
+- **Other Python Hosts**: Any service that can run `uvicorn main:app` with provided environment variables (Render, Fly.io, Cloud Run, etc.).
 
 ## 🎨 UI/UX Features
 
@@ -151,10 +148,10 @@ The Jac backends are ready for cloud deployment:
 
 ### Technologies Used
 
-- **Backend**: Jac Language (graph-based programming)
+- **Backend**: FastAPI + JacMachine/byLLM integration
 - **Frontend**: TypeScript + React + Vite
 - **Styling**: Tailwind CSS + Custom animations
-- **Package Management**: Yarn
+- **Package Management**: Yarn (frontend) & pip (backend)
 - **Build Tools**: Vite + PostCSS
 
 ### Local Development

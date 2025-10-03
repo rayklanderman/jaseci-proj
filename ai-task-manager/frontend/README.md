@@ -1,73 +1,54 @@
-# React + TypeScript + Vite
+# AI Task Manager Frontend (Vite + React + TypeScript)
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Progressive Web App that powers the AI Task Manager experience. It connects to the FastAPI/Jac backend hosted on Railway and falls back to local simulation mode if the backend is unreachable.
 
-Currently, two official plugins are available:
+## Quick Start
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+cd ai-task-manager/frontend
+yarn install
+yarn dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+The development server runs at <http://localhost:5173/>.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## Environment Variables
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+Copy `.env.example` to `.env` (or configure variables in your hosting provider):
+
+- `VITE_BACKEND_BASE_URL` – URL of the production backend. Example: `https://ai-task-manager-production.up.railway.app`
+
+When the variable is omitted the app automatically uses:
+
+- `http://localhost:8000` during local development
+- `<current-origin>/api` in production (allows proxying through rewrites if desired)
+
+## Build & Preview
+
+```bash
+yarn build
+yarn preview
 ```
+
+## Deployment (Vercel)
+
+1. Set the project root to `ai-task-manager/frontend` in Vercel.
+2. Configure the build command `yarn install && yarn build` and output directory `dist`.
+3. In **Project Settings → Environment Variables**, add `VITE_BACKEND_BASE_URL` pointing to the Railway backend URL.
+4. Redeploy the site; the bundle will include the production API endpoint.
+
+## Key Features
+
+- Responsive glassmorphism UI with Tailwind CSS.
+- Installable PWA with offline caching and service worker.
+- Auto-detection of backend availability and graceful fallback to simulated mode.
+- Type-safe API layer (`src/types/api.ts`) shared across services.
+- Modular task views (`TaskManager`, `TaskManagerPro`, `TaskTemplates`).
+
+## Project Scripts
+
+- `yarn dev` – start the Vite dev server.
+- `yarn build` – create an optimized production build.
+- `yarn preview` – serve the production build locally.
+
+Use `yarn lint` if you enable linting rules in `eslint.config.js`.

@@ -57,6 +57,41 @@
   --text-tertiary: #94a3b8;
 }
 
+.surface-root {
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.surface-card {
+  background-color: var(--bg-card);
+  color: var(--text-primary);
+  transition: background-color 0.3s ease, color 0.3s ease,
+    border-color 0.3s ease;
+}
+
+.surface-card.border-slate-200,
+.surface-card.border-slate-100,
+.surface-card.border-slate-300 {
+  border-color: var(--border-primary) !important;
+}
+
+.surface-muted {
+  background-color: var(--bg-tertiary);
+  color: var(--text-secondary);
+  border-color: var(--border-primary) !important;
+}
+
+.surface-badge {
+  background-color: var(--bg-overlay) !important;
+  color: var(--text-secondary) !important;
+}
+
+.surface-highlight {
+  background-color: rgba(99, 102, 241, 0.16) !important;
+  color: var(--text-primary);
+}
+
 /* Professional Base Styles */
 * {
   box-sizing: border-box;

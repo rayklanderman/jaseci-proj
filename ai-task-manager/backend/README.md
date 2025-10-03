@@ -4,8 +4,12 @@ FastAPI service that powers AI task categorisation, Gemini-driven insights, and 
 
 ## Environment Variables
 
+Create a `.env` file (or configure variables directly in your platform) using the template in `.env.example`:
+
 - `GEMINI_API_KEY` – required for Google Gemini access through JacMachine/byllm.
-- `PORT` – Render/Heroku style port binding. Defaults to `8000` when running locally.
+- `DATABASE_URL` – SQLModel connection string. Defaults to local SQLite when omitted; use PostgreSQL for production (e.g. `postgresql+psycopg://user:pass@host:5432/dbname`).
+- `FRONTEND_ORIGINS` – comma-separated list of allowed origins for CORS (e.g. your Vercel deployment and custom domains).
+- `PORT` – optional port override for hosts that inject a port (defaults to `8000`).
 
 ## Local Development
 
@@ -15,26 +19,36 @@ python -m venv .venv
 source .venv/bin/activate          # Windows: .venv\Scripts\activate
 pip install --upgrade pip
 pip install -r requirements.txt
-export GEMINI_API_KEY=your_key     # Windows: set GEMINI_API_KEY=your_key
+cp .env.example .env               # Windows: copy .env.example .env
+# edit .env with your GEMINI_API_KEY and (optionally) DATABASE_URL
 uvicorn main:app --reload
 ```
 
-The API is then available at `http://127.0.0.1:8000` with interactive docs at `/docs`.
+The API boots on `http://127.0.0.1:8000` with interactive docs at `/docs`. By default it persists data to `task_manager.db` (SQLite). Provide a PostgreSQL `DATABASE_URL` to mirror production.
 
-## Railway Deployment (Recommended)
+## Railway Deployment (Backend)
 
-Railway can build and run the FastAPI service directly from this repository without any extra CLI tooling:
+Railway is the production target for the backend. Use a managed PostgreSQL database for persistence and configure the service to accept your Vercel frontend origin.
 
-1. Sign in at [railway.app](https://railway.app) and create a new project.
-2. Choose **Deploy from GitHub** and select `rayklanderman/jaseci-proj`.
-3. When prompted, set the service root to `ai-task-manager/backend`.
-4. Confirm (or set) the build/start commands:
+1. **Create the service**
+   - Sign in at [railway.app](https://railway.app) → create a project → **Deploy from GitHub** → select `rayklanderman/jaseci-proj`.
+   - Set the service root to `ai-task-manager/backend`.
+2. **Provision PostgreSQL**
+   - Add a **PostgreSQL** database plugin inside the same project.
+   - Copy the provided connection string and convert it to SQLModel/SQLAlchemy format, e.g. `postgresql+psycopg://USER:PASSWORD@HOST:PORT/DATABASE`.
+3. **Configure environment variables**
+   - `GEMINI_API_KEY` – required for AI brief generation.
+   - `DATABASE_URL` – use the converted Railway connection string.
+   - `FRONTEND_ORIGINS` – include your Vercel domain(s), e.g. `https://ai-task-manager.vercel.app`.
+4. **Build / start commands**
    - **Build:** `pip install --upgrade pip && pip install -r requirements.txt`
    - **Start:** `uvicorn main:app --host 0.0.0.0 --port $PORT`
-5. Add the required environment variables (at minimum `GEMINI_API_KEY`).
-6. Deploy — Railway will provision the service and expose a public URL you can share with the frontend.
+5. **Deploy and verify**
+   - Trigger a deploy. Once running, open the public URL and confirm `/HealthCheck` returns `status: "healthy"`.
+6. **Keep the free tier awake** _(optional but recommended)_
+   - Add an UptimeRobot HTTP monitor pointing at the Railway URL with a 5-minute interval to avoid cold starts.
 
-Once deployed, update the Vercel project with `VITE_BACKEND_BASE_URL=<railway-url>` so the React app uses the hosted backend. The frontend continues to rely on **Yarn**; keep `yarn` commands for the Vite workspace and `pip` for this FastAPI service.
+Share the deployed URL with the frontend by setting `VITE_BACKEND_BASE_URL` in Vercel (see frontend README).
 
 ## Alternate Deployment Targets
 

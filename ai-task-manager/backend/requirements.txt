@@ -4,3 +4,5 @@ uvicorn[standard]>=0.24.0
 jaclang>=0.8.7
 byllm>=0.1.0
 pydantic>=2.4.2
+sqlmodel>=0.0.16
+psycopg[binary]>=3.2

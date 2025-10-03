@@ -14,12 +14,57 @@ import subprocess
 import sys
 import json
 import re
+from sqlmodel import SQLModel, Field, Session, create_engine, select
+from sqlalchemy import Column, JSON, func
+import shutil
 
 # Jac Integration - Import AI capabilities
 try:
     from jaclang import JacMachine
-    import os
-    
+
+    if not hasattr(JacMachine, "run_jac_file"):
+        def _run_jac_file(self, file_path: str) -> Optional[str]:
+            if not os.path.exists(file_path):
+                raise FileNotFoundError(f"Jac file not found: {file_path}")
+
+            candidate_commands = []
+            jac_executable = shutil.which("jac")
+            if jac_executable:
+                candidate_commands.append([jac_executable, "run", file_path])
+
+            candidate_commands.extend(
+                [
+                    [sys.executable, "-m", "jaclang.cli.cli", "run", file_path],
+                    [sys.executable, "-m", "jaclang.cli", "run", file_path],
+                ]
+            )
+
+            last_error: Optional[str] = None
+            for cmd in candidate_commands:
+                try:
+                    result = subprocess.run(
+                        cmd,
+                        capture_output=True,
+                        text=True,
+                        timeout=60,
+                    )
+                except subprocess.TimeoutExpired as timeout_err:
+                    raise RuntimeError(
+                        f"Jac execution timed out for {file_path}"
+                    ) from timeout_err
+
+                if result.returncode == 0:
+                    return result.stdout.strip()
+
+                stderr = result.stderr.strip()
+                last_error = f"Jac execution failed ({result.returncode})" + (
+                    f": {stderr}" if stderr else ""
+                )
+
+            raise RuntimeError(last_error or "Jac execution failed")
+
+        setattr(JacMachine, "run_jac_file", _run_jac_file)
+
     # Check for Gemini API key
     api_key = os.getenv("GEMINI_API_KEY")
     if api_key:
@@ -36,6 +81,28 @@ except Exception as e:
     print(f"⚠️ Jac AI integration failed, using fallback: {e}")
     AI_AVAILABLE = False
 
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./task_manager.db")
+engine_kwargs: dict = {"pool_pre_ping": True}
+if DATABASE_URL.startswith("sqlite"):
+    engine_kwargs["connect_args"] = {"check_same_thread": False}
+
+engine = create_engine(DATABASE_URL, echo=False, **engine_kwargs)
+
+
+class TaskRecord(SQLModel, table=True):
+    __tablename__ = "tasks"
+    __table_args__ = {"extend_existing": True}
+    id: str = Field(primary_key=True)
+    content: str
+    category: str
+    priority: str
+    status: str
+    ai_reasoning: str = Field(default="AI analysis completed")
+    ai_confidence: Optional[float] = None
+    ai_tags: List[str] = Field(default_factory=list, sa_column=Column(JSON))
+    created_at: str
+    updated_at: str
+
 app = FastAPI(
     title="🤖 AI Task Manager API",
     description="AI-powered task management with intelligent categorization using Jac language integration",
@@ -43,9 +110,21 @@ app = FastAPI(
 )
 
 # CORS middleware for frontend integration
+default_origins = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:3000",
+]
+configured_origins = os.getenv("FRONTEND_ORIGINS")
+allowed_origins = (
+    [origin.strip() for origin in configured_origins.split(",") if origin.strip()]
+    if configured_origins
+    else default_origins
+)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:3000"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -104,8 +183,33 @@ class AIBriefResponse(BaseModel):
     data: AIBriefData
     error: Optional[str] = None
 
-# Global storage (in production, use database)
-tasks_storage: List[Task] = []
+
+def task_record_to_model(record: TaskRecord) -> Task:
+    return Task(
+        id=record.id,
+        content=record.content,
+        category=record.category,
+        priority=record.priority,
+        status=record.status,
+        ai_reasoning=record.ai_reasoning,
+        ai_confidence=record.ai_confidence,
+        ai_tags=record.ai_tags or [],
+        created_at=record.created_at,
+        updated_at=record.updated_at,
+    )
+
+
+def load_tasks(session: Session) -> List[Task]:
+    records = session.exec(select(TaskRecord).order_by(TaskRecord.created_at)).all()
+    return [task_record_to_model(record) for record in records]
+
+
+def get_task_by_id(session: Session, task_id: str) -> Optional[TaskRecord]:
+    return session.get(TaskRecord, task_id)
+
+
+def get_task_count(session: Session) -> int:
+    return session.exec(select(func.count(TaskRecord.id))).one()
 
 
 def build_fallback_brief(tasks: List[Task]) -> dict:
@@ -517,9 +621,6 @@ def categorize_with_fallback(content: str) -> dict:
         ["Pattern Match", normalised_category],
     )
 
-# Global storage (in production, use database)
-tasks_storage: List[Task] = []
-
 @app.get("/")
 async def root():
     """Root endpoint with API information"""
@@ -542,32 +643,38 @@ async def root():
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
+    with Session(engine) as session:
+        tasks_count = get_task_count(session)
     return {
         "status": "healthy",
         "service": "AI Task Manager",
         "ai_available": AI_AVAILABLE,
-        "tasks_count": len(tasks_storage),
+        "tasks_count": tasks_count,
         "timestamp": datetime.datetime.now().isoformat()
     }
 
 @app.get("/HealthCheck")
 async def health_check_frontend():
     """Health check endpoint for frontend (capitalized)"""
+    with Session(engine) as session:
+        tasks_count = get_task_count(session)
     return {
         "status": "healthy",
         "service": "AI Task Manager", 
         "ai_available": AI_AVAILABLE,
-        "tasks_count": len(tasks_storage),
+        "tasks_count": tasks_count,
         "timestamp": datetime.datetime.now().isoformat()
     }
 
 @app.get("/tasks", response_model=TaskResponse)
 async def get_tasks():
     """Get all tasks"""
+    with Session(engine) as session:
+        tasks = load_tasks(session)
     return TaskResponse(
         success=True,
-        tasks=tasks_storage,
-        total=len(tasks_storage)
+        tasks=tasks,
+        total=len(tasks)
     )
 
 @app.post("/tasks", response_model=TaskResponse)
@@ -584,7 +691,7 @@ async def create_task(task_data: TaskCreate):
     ai_result = categorize_task_with_ai(task_data.content)
     
     # Create task
-    new_task = Task(
+    new_record = TaskRecord(
         id=task_id,
         content=task_data.content.strip(),
         category=ai_result["category"],
@@ -594,53 +701,68 @@ async def create_task(task_data: TaskCreate):
         ai_confidence=ai_result.get("confidence"),
         ai_tags=[str(tag) for tag in ai_result.get("tags", [])],
         created_at=timestamp,
-        updated_at=timestamp
+        updated_at=timestamp,
     )
-    
-    tasks_storage.append(new_task)
-    
+
+    with Session(engine) as session:
+        session.add(new_record)
+        session.commit()
+        session.refresh(new_record)
+
     return TaskResponse(
         success=True,
         message="Task created successfully",
-        task=new_task
+        task=task_record_to_model(new_record)
     )
 
 @app.put("/tasks/{task_id}", response_model=TaskResponse)
 async def update_task(task_id: str, task_update: TaskUpdate):
     """Update a task"""
-    task = next((t for t in tasks_storage if t.id == task_id), None)
-    if not task:
-        raise HTTPException(status_code=404, detail=f"Task with ID {task_id} not found")
-    
-    # Update task
-    if task_update.status and task_update.status in ["pending", "in-progress", "completed"]:
-        task.status = task_update.status
-        task.updated_at = datetime.datetime.now().isoformat()
-    
-    return TaskResponse(
-        success=True,
-        message="Task updated successfully",
-        task=task
-    )
+    with Session(engine) as session:
+        task_record = get_task_by_id(session, task_id)
+        if not task_record:
+            raise HTTPException(status_code=404, detail=f"Task with ID {task_id} not found")
+
+        if task_update.status and task_update.status in ["pending", "in-progress", "completed"]:
+            task_record.status = task_update.status
+            task_record.updated_at = datetime.datetime.now().isoformat()
+
+        session.add(task_record)
+        session.commit()
+        session.refresh(task_record)
+
+        return TaskResponse(
+            success=True,
+            message="Task updated successfully",
+            task=task_record_to_model(task_record),
+        )
 
 @app.delete("/tasks/{task_id}", response_model=TaskResponse)
 async def delete_task(task_id: str):
     """Delete a task"""
-    global tasks_storage
-    original_count = len(tasks_storage)
-    tasks_storage = [t for t in tasks_storage if t.id != task_id]
-    
-    if len(tasks_storage) == original_count:
-        raise HTTPException(status_code=404, detail=f"Task with ID {task_id} not found")
-    
+    with Session(engine) as session:
+        task_record = get_task_by_id(session, task_id)
+        if not task_record:
+            raise HTTPException(status_code=404, detail=f"Task with ID {task_id} not found")
+
+        session.delete(task_record)
+        session.commit()
+
     return TaskResponse(
         success=True,
-        message=f"Task {task_id} deleted successfully"
+        message=f"Task {task_id} deleted successfully",
+        task_id=task_id,
     )
 
 @app.get("/ai-insights", response_model=dict)
 async def get_ai_insights():
     """Get AI-powered productivity insights"""
+    with Session(engine) as session:
+        tasks = load_tasks(session)
+        total_tasks = len(tasks)
+        completed_tasks = len([t for t in tasks if t.status == "completed"])
+        pending_tasks = total_tasks - completed_tasks
+
     if not AI_AVAILABLE:
         return {
             "success": False,
@@ -650,11 +772,6 @@ async def get_ai_insights():
         }
     
     try:
-        # Calculate current stats
-        total_tasks = len(tasks_storage)
-        completed_tasks = len([t for t in tasks_storage if t.status == "completed"])
-        pending_tasks = total_tasks - completed_tasks
-        
         # Create Jac script for insights
         jac_script = f'''
 import from byllm.llm {{ Model }}
@@ -717,22 +834,27 @@ with entry {{
 @app.get("/ai-brief", response_model=AIBriefResponse)
 async def get_ai_brief():
     """Generate an AI-crafted daily brief combining agenda and recommendations."""
-    try:
-        data = generate_ai_brief(tasks_storage)
-        return AIBriefResponse(success=True, data=AIBriefData(**data))
-    except Exception as exc:
-        print(f"AI brief endpoint error: {exc}")
-        fallback = build_fallback_brief(tasks_storage)
-        return AIBriefResponse(
-            success=False,
-            data=AIBriefData(**fallback),
-            error=str(exc),
-        )
+    with Session(engine) as session:
+        tasks = load_tasks(session)
+        try:
+            data = generate_ai_brief(tasks)
+            return AIBriefResponse(success=True, data=AIBriefData(**data))
+        except Exception as exc:
+            print(f"AI brief endpoint error: {exc}")
+            fallback = build_fallback_brief(tasks)
+            return AIBriefResponse(
+                success=False,
+                data=AIBriefData(**fallback),
+                error=str(exc),
+            )
 
 @app.get("/analytics", response_model=AnalyticsResponse)
 async def get_analytics():
     """Get task analytics"""
-    if len(tasks_storage) == 0:
+    with Session(engine) as session:
+        tasks = load_tasks(session)
+
+    if len(tasks) == 0:
         return AnalyticsResponse(
             success=True,
             analytics={
@@ -749,18 +871,18 @@ async def get_analytics():
     by_priority = {}
     by_status = {}
     
-    for task in tasks_storage:
+    for task in tasks:
         by_category[task.category] = by_category.get(task.category, 0) + 1
         by_priority[task.priority] = by_priority.get(task.priority, 0) + 1
         by_status[task.status] = by_status.get(task.status, 0) + 1
     
     completed = by_status.get("completed", 0)
-    completion_rate = (completed / len(tasks_storage)) * 100 if len(tasks_storage) > 0 else 0
+    completion_rate = (completed / len(tasks)) * 100 if len(tasks) > 0 else 0
     
     return AnalyticsResponse(
         success=True,
         analytics={
-            "total_tasks": len(tasks_storage),
+            "total_tasks": len(tasks),
             "by_category": by_category,
             "by_priority": by_priority, 
             "by_status": by_status,
@@ -777,35 +899,53 @@ async def startup_event():
     print("🤖 AI Integration:", "Jac Language" if AI_AVAILABLE else "Fallback Pattern Matching")
     print("📊 CORS enabled for frontend integration")
     print("🔥 API Documentation: http://localhost:8000/docs")
-    
-    # Create sample tasks
-    sample_tasks = [
-        "Complete quarterly report for Q4",
-        "Buy groceries for the week", 
-        "Call mom for her birthday",
-        "Fix critical bug in authentication system",
-        "Schedule dentist appointment"
-    ]
-    
-    for content in sample_tasks:
-        ai_result = categorize_task_with_ai(content)
-        task = Task(
-            id=str(uuid.uuid4()),
-            content=content,
-            category=ai_result["category"],
-            priority=ai_result["priority"],
-            status="pending",
-            ai_reasoning=ai_result["reasoning"],
-            ai_confidence=ai_result.get("confidence"),
-            ai_tags=[str(tag) for tag in ai_result.get("tags", [])],
-            created_at=datetime.datetime.now().isoformat(),
-            updated_at=datetime.datetime.now().isoformat()
-        )
-        tasks_storage.append(task)
-        print(f"📝 Created sample task: {content}")
-    
-    print(f"🎉 Initialized with {len(tasks_storage)} sample tasks")
+
+    SQLModel.metadata.create_all(engine)
+    seeded = False
+    with Session(engine) as session:
+        existing_count = get_task_count(session)
+        if existing_count == 0:
+            seeded = True
+            sample_tasks = [
+                "Complete quarterly report for Q4",
+                "Buy groceries for the week",
+                "Call mom for her birthday",
+                "Fix critical bug in authentication system",
+                "Schedule dentist appointment",
+            ]
+
+            for content in sample_tasks:
+                ai_result = categorize_task_with_ai(content)
+                now_iso = datetime.datetime.now().isoformat()
+                record = TaskRecord(
+                    id=str(uuid.uuid4()),
+                    content=content,
+                    category=ai_result["category"],
+                    priority=ai_result["priority"],
+                    status="pending",
+                    ai_reasoning=ai_result["reasoning"],
+                    ai_confidence=ai_result.get("confidence"),
+                    ai_tags=[str(tag) for tag in ai_result.get("tags", [])],
+                    created_at=now_iso,
+                    updated_at=now_iso,
+                )
+                session.add(record)
+                print(f"📝 Created sample task: {content}")
+
+            session.commit()
+            existing_count = get_task_count(session)
+
+    if seeded:
+        print(f"🎉 Initialized with {existing_count} sample tasks")
+    else:
+        print(f"ℹ️ Existing tasks detected: {existing_count} task(s) retained")
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
+
+    uvicorn.run(
+        "main:app",
+        host="0.0.0.0",
+        port=int(os.getenv("PORT", "8000")),
+        reload=os.getenv("UVICORN_RELOAD", "false").lower() in {"1", "true", "yes"},
+    )

@@ -1,6 +1,7 @@
 // Smart Notifications Service
 // Integrates with the existing service worker for task reminders
 
+import { useMemo } from "react";
 import type { TaskId } from "../types/api";
 
 export interface TaskReminderOptions {
@@ -14,6 +15,7 @@ export interface TaskReminderOptions {
 export class SmartNotificationService {
   private static instance: SmartNotificationService;
   private registrationPromise: Promise<ServiceWorkerRegistration | null>;
+  private reminderTimers: Map<TaskId, number> = new Map();
 
   private constructor() {
     this.registrationPromise = this.getServiceWorkerRegistration();
@@ -69,6 +71,13 @@ export class SmartNotificationService {
       options.reminderTime
     );
 
+    // Clear any existing scheduled reminder for this task
+    const existingTimer = this.reminderTimers.get(options.taskId);
+    if (typeof existingTimer === "number") {
+      window.clearTimeout(existingTimer);
+      this.reminderTimers.delete(options.taskId);
+    }
+
     if (reminderDelay <= 0) {
       // Show immediate notification
       this.showImmediateNotification(options);
@@ -76,9 +85,12 @@ export class SmartNotificationService {
     }
 
     // Schedule future notification
-    setTimeout(() => {
+    const timeoutId = window.setTimeout(() => {
+      this.reminderTimers.delete(options.taskId);
       this.showImmediateNotification(options);
     }, reminderDelay);
+
+    this.reminderTimers.set(options.taskId, timeoutId);
 
     console.log(
       `📅 Task reminder scheduled for ${new Date(
@@ -112,7 +124,10 @@ export class SmartNotificationService {
 
     if (registration) {
       // Use service worker for rich notifications
-      registration.showNotification("🤖 AI Task Reminder", {
+      const notificationOptions: NotificationOptions & {
+        actions?: Array<{ action: string; title: string }>;
+        data?: unknown;
+      } = {
         body: options.description,
         icon: "/icon-192.png",
         badge: "/badge.png",
@@ -133,7 +148,9 @@ export class SmartNotificationService {
           priority: options.priority.toLowerCase(),
           body: options.description,
         },
-      });
+      };
+
+      registration.showNotification("🤖 AI Task Reminder", notificationOptions);
     } else {
       // Fallback to basic notification
       new Notification(`🤖 Task Reminder: ${options.title}`, {
@@ -157,6 +174,12 @@ export class SmartNotificationService {
 
   // Cancel notifications for completed tasks
   async cancelTaskNotification(taskId: TaskId): Promise<void> {
+    const timer = this.reminderTimers.get(taskId);
+    if (typeof timer === "number") {
+      window.clearTimeout(timer);
+      this.reminderTimers.delete(taskId);
+    }
+
     const registration = await this.registrationPromise;
     if (registration) {
       const notifications = await registration.getNotifications({
@@ -172,30 +195,33 @@ export class SmartNotificationService {
 export const notificationService = SmartNotificationService.getInstance();
 
 // Easy integration functions for TaskManager
-export const useSmartNotifications = () => {
-  const scheduleReminder = async (task: {
-    id: TaskId;
-    description: string;
-    priority?: string;
-    dueDate?: string;
-  }) => {
-    await notificationService.scheduleTaskReminder({
-      taskId: task.id,
-      title: task.description,
-      description: task.description,
-      priority:
-        task.priority === "High" ||
-        task.priority === "Medium" ||
-        task.priority === "Low"
-          ? task.priority
-          : "Medium",
-      reminderTime: task.dueDate ? new Date(task.dueDate) : undefined,
-    });
-  };
+export const useSmartNotifications = () =>
+  useMemo(() => {
+    const scheduleReminder = async (task: {
+      id: TaskId;
+      description: string;
+      priority?: string;
+      dueDate?: string;
+    }) => {
+      await notificationService.scheduleTaskReminder({
+        taskId: task.id,
+        title: task.description,
+        description: task.description,
+        priority:
+          task.priority === "High" ||
+          task.priority === "Medium" ||
+          task.priority === "Low"
+            ? task.priority
+            : "Medium",
+        reminderTime: task.dueDate ? new Date(task.dueDate) : undefined,
+      });
+    };
 
-  const cancelReminder = async (taskId: TaskId) => {
-    await notificationService.cancelTaskNotification(taskId);
-  };
+    const cancelReminder = async (taskId: TaskId) => {
+      await notificationService.cancelTaskNotification(taskId);
+    };
 
-  return { scheduleReminder, cancelReminder };
-};
+    const requestPermission = () => notificationService.requestPermission();
+
+    return { scheduleReminder, cancelReminder, requestPermission };
+  }, []);

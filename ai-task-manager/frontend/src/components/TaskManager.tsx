@@ -1,300 +1,370 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import autoSwitchingTaskService from "../services/autoSwitchingApi";
 import type { BackendStatus } from "../services/backendDetector";
 import type { Task, TaskId, TaskListResponse, AIBriefData } from "../types/api";
-import { TaskTemplates } from "./TaskTemplates";
 import { useTheme } from "../services/themeService";
 import { useSmartNotifications } from "../services/smartNotifications";
 import { SmartDateParser } from "../services/smartDateParser";
+import type { ParsedDate } from "../services/smartDateParser";
 import type { TaskTemplate } from "../services/taskTemplates";
-import {
-  CustomTemplateService,
-  TaskTemplateService,
-} from "../services/taskTemplates";
+import { CustomTemplateService } from "../services/taskTemplates";
+
+const STORAGE_KEY = "ai_task_manager_tasks";
+
+const KEYWORD_TEMPLATE_RULES: Array<{
+  pattern: RegExp;
+  templateIds: string[];
+}> = [
+  {
+    pattern: /(meeting|sync|stand[- ]?up|client|call)/i,
+    templateIds: ["meeting-prep", "project-kickoff"],
+  },
+  {
+    pattern: /(project|launch|kickoff|plan)/i,
+    templateIds: ["project-kickoff", "weekly-review"],
+  },
+  { pattern: /(review|weekly|summary)/i, templateIds: ["weekly-review"] },
+  { pattern: /(grocery|shopping|store)/i, templateIds: ["grocery-run"] },
+  {
+    pattern: /(home|maintenance|chores|clean)/i,
+    templateIds: ["home-maintenance", "digital-declutter"],
+  },
+  {
+    pattern: /(workout|gym|exercise|training)/i,
+    templateIds: ["workout-plan"],
+  },
+  { pattern: /(meal prep|meal-prep|cook|recipe)/i, templateIds: ["meal-prep"] },
+  {
+    pattern: /(study|learn|course|class|training)/i,
+    templateIds: ["study-session", "skill-practice"],
+  },
+  { pattern: /(practice|skill|improve)/i, templateIds: ["skill-practice"] },
+  {
+    pattern: /(digital|files|cleanup|organize)/i,
+    templateIds: ["digital-declutter"],
+  },
+];
+
+type FeedbackKind = "success" | "error" | "info";
+
+interface ActionFeedback {
+  type: FeedbackKind;
+  message: string;
+}
 
 interface TaskItemProps {
   task: Task;
   onComplete: (taskId: TaskId) => void;
   onDelete: (taskId: TaskId) => void;
+  canComplete: boolean;
+  isBusy: boolean;
 }
 
-const TaskItem: React.FC<TaskItemProps> = ({ task, onComplete, onDelete }) => {
-  const getCategoryColor = (category: string) => {
-    switch (category) {
-      case "Work":
-        return "from-blue-500 to-blue-600 bg-gradient-to-br";
-      case "Personal":
-        return "from-emerald-500 to-emerald-600 bg-gradient-to-br";
-      case "Health":
-        return "from-rose-500 to-rose-600 bg-gradient-to-br";
-      case "Learning":
-        return "from-violet-500 to-violet-600 bg-gradient-to-br";
-      default:
-        return "from-slate-500 to-slate-600 bg-gradient-to-br";
-    }
+const TaskItem: React.FC<TaskItemProps> = ({
+  task,
+  onComplete,
+  onDelete,
+  canComplete,
+  isBusy,
+}) => {
+  const priorityTone: Record<string, string> = {
+    High: "text-red-600 bg-red-50 border-red-200",
+    Medium: "text-amber-600 bg-amber-50 border-amber-200",
+    Low: "text-emerald-600 bg-emerald-50 border-emerald-200",
   };
 
-  const getCategoryIcon = (category: string) => {
-    switch (category) {
-      case "Work":
-        return "💼";
-      case "Personal":
-        return "🏠";
-      case "Health":
-        return "💪";
-      case "Learning":
-        return "📚";
-      default:
-        return "📝";
-    }
-  };
+  const badgeClass =
+    priorityTone[task.priority ?? ""] ??
+    "text-slate-600 bg-slate-50 border-slate-200";
 
-  const getPriorityColor = (priority?: string) => {
-    switch (priority) {
-      case "High":
-        return "border-red-400 bg-red-50";
-      case "Medium":
-        return "border-yellow-400 bg-yellow-50";
-      case "Low":
-        return "border-green-400 bg-green-50";
-      default:
-        return "border-gray-300 bg-white";
-    }
-  };
+  const truncatedId = task.id.length > 8 ? `${task.id.slice(0, 8)}…` : task.id;
 
   return (
-    <div
-      className={`group relative overflow-hidden rounded-2xl border-2 transition-all duration-300 hover:shadow-xl hover:scale-[1.02] ${
-        task.completed
-          ? "bg-gray-50/80 backdrop-blur-sm border-gray-200 opacity-70"
-          : `${getPriorityColor(
-              task.priority
-            )} backdrop-blur-lg shadow-lg hover:border-indigo-400`
-      }`}
-    >
-      <div className="mt-3 flex flex-wrap items-center gap-2">
-        {typeof task.aiConfidence === "number" && (
-          <span className="inline-flex items-center gap-1 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-xs font-medium text-indigo-600">
-            🤖 Confidence {Math.round(task.aiConfidence * 100)}%
-          </span>
-        )}
-        {task.aiTags?.map((tag) => (
-          <span
-            key={`${task.id}-${tag}`}
-            className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white/80 px-3 py-1 text-xs font-medium text-slate-500"
+    <article className="surface-card rounded-xl border border-slate-200 p-4 shadow-sm transition hover:border-indigo-200 hover:shadow-md">
+      <div className="flex items-start gap-4">
+        <button
+          type="button"
+          onClick={() => onComplete(task.id)}
+          disabled={!canComplete || task.completed || isBusy}
+          className={`mt-1 flex h-8 w-8 items-center justify-center rounded-full border-2 text-sm font-semibold transition ${
+            task.completed
+              ? "border-emerald-500 bg-emerald-500 text-white"
+              : "border-slate-300 text-slate-500 hover:border-emerald-400 hover:text-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
+          }`}
+          title={
+            task.completed
+              ? "Task already completed"
+              : canComplete
+              ? "Mark task as complete"
+              : "Completion disabled for this list"
+          }
+        >
+          {task.completed ? "✓" : ""}
+        </button>
+
+        <div className="min-w-0 flex-1 space-y-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600">
+              {task.category ?? "General"}
+            </span>
+            {task.priority && (
+              <span
+                className={`inline-flex items-center gap-1 rounded-full border px-2 py-1 text-xs font-semibold ${badgeClass}`}
+              >
+                <span>Priority</span>
+                <span>{task.priority}</span>
+              </span>
+            )}
+            <span className="text-xs text-slate-400">#{truncatedId}</span>
+          </div>
+
+          <p
+            className={`text-base font-medium leading-relaxed text-slate-800 ${
+              task.completed ? "line-through text-slate-400" : ""
+            }`}
           >
-            #{tag}
-          </span>
-        ))}
-      </div>
+            {task.description}
+          </p>
 
-      {task.aiReasoning && (
-        <p className="mt-2 text-sm text-slate-500">{task.aiReasoning}</p>
-      )}
-      <div className="p-6">
-        <div className="flex items-start justify-between">
-          <div className="flex items-start space-x-4 flex-1">
-            <div
-              className={`p-3 rounded-xl ${getCategoryColor(
-                task.category
-              )} text-white shadow-lg`}
-            >
-              <span className="text-lg">{getCategoryIcon(task.category)}</span>
-            </div>
+          {task.aiReasoning && (
+            <p className="surface-muted rounded-lg px-3 py-2 text-xs text-slate-500">
+              {task.aiReasoning}
+            </p>
+          )}
 
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-2">
-                <span
-                  className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getCategoryColor(
-                    task.category
-                  )} text-white shadow-md`}
-                >
-                  {task.category}
-                </span>
-                {task.priority && (
+          <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
+            {task.created_at && (
+              <span>
+                Added{" "}
+                {new Date(task.created_at).toLocaleDateString(undefined, {
+                  month: "short",
+                  day: "numeric",
+                })}
+              </span>
+            )}
+            {task.due_date && (
+              <span className="inline-flex items-center rounded-full bg-indigo-50 px-2 py-1 font-medium text-indigo-600">
+                Due{" "}
+                {new Date(task.due_date).toLocaleDateString(undefined, {
+                  month: "short",
+                  day: "numeric",
+                })}
+              </span>
+            )}
+            {typeof task.aiConfidence === "number" && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-1 font-medium text-emerald-600">
+                🤖 {Math.round(task.aiConfidence * 100)}% confidence
+              </span>
+            )}
+            {task.aiTags?.length ? (
+              <span className="flex flex-wrap items-center gap-1">
+                {task.aiTags.slice(0, 2).map((tag) => (
                   <span
-                    className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                      task.priority === "High"
-                        ? "bg-red-100 text-red-700"
-                        : task.priority === "Medium"
-                        ? "bg-yellow-100 text-yellow-700"
-                        : "bg-green-100 text-green-700"
-                    }`}
+                    key={`${task.id}-${tag}`}
+                    className="rounded-full bg-slate-100 px-2 py-1 text-[0.7rem] font-medium text-slate-500"
                   >
-                    {task.priority}
+                    #{tag}
+                  </span>
+                ))}
+                {task.aiTags.length > 2 && (
+                  <span className="text-[0.7rem] text-slate-400">
+                    +{task.aiTags.length - 2}
                   </span>
                 )}
-                <span className="text-xs text-gray-400 font-mono">
-                  #{task.id}
-                </span>
-              </div>
-
-              <p
-                className={`text-lg font-medium leading-relaxed ${
-                  task.completed
-                    ? "line-through text-gray-400"
-                    : "text-gray-800 group-hover:text-gray-900"
-                }`}
-              >
-                {task.description}
-              </p>
-            </div>
+              </span>
+            ) : null}
           </div>
+        </div>
 
-          <div className="flex flex-col space-y-2 ml-4">
-            {!task.completed && (
-              <button
-                onClick={() => onComplete(task.id)}
-                className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white text-sm font-medium rounded-xl hover:from-emerald-600 hover:to-emerald-700 transform hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-emerald-200"
-              >
-                <svg
-                  className="w-4 h-4 mr-2"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M5 13l4 4L19 7"
-                  />
-                </svg>
-                Complete
-              </button>
-            )}
+        <div className="flex flex-col gap-2">
+          {canComplete && !task.completed && (
             <button
-              onClick={() => onDelete(task.id)}
-              className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-rose-500 to-rose-600 text-white text-sm font-medium rounded-xl hover:from-rose-600 hover:to-rose-700 transform hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-rose-200"
+              type="button"
+              onClick={() => onComplete(task.id)}
+              disabled={isBusy}
+              className="inline-flex items-center justify-center rounded-full border border-emerald-200 px-3 py-1 text-xs font-semibold text-emerald-600 transition hover:border-emerald-300 hover:bg-emerald-50 disabled:cursor-progress disabled:opacity-60"
             >
-              <svg
-                className="w-4 h-4 mr-2"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                />
-              </svg>
-              Delete
+              Mark complete
             </button>
-          </div>
+          )}
+          <button
+            type="button"
+            onClick={() => onDelete(task.id)}
+            disabled={isBusy}
+            className="inline-flex items-center justify-center rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-500 transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600 disabled:cursor-progress disabled:opacity-60"
+          >
+            Remove
+          </button>
         </div>
       </div>
-
-      {task.completed && (
-        <div className="absolute top-4 right-4">
-          <div className="p-2 bg-emerald-500 text-white rounded-full shadow-lg">
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={3}
-                d="M5 13l4 4L19 7"
-              />
-            </svg>
-          </div>
-        </div>
-      )}
-    </div>
+    </article>
   );
 };
 
 interface TaskListProps {
   tasks: Task[];
-  onComplete: (taskId: TaskId) => void;
-  onDelete: (taskId: TaskId) => void;
   title: string;
+  caption: string;
   emptyMessage: string;
   icon: string;
+  onComplete: (taskId: TaskId) => void;
+  onDelete: (taskId: TaskId) => void;
+  isBusy: boolean;
+  allowComplete?: boolean;
 }
 
 const TaskList: React.FC<TaskListProps> = ({
   tasks,
-  onComplete,
-  onDelete,
   title,
+  caption,
   emptyMessage,
   icon,
+  onComplete,
+  onDelete,
+  isBusy,
+  allowComplete = true,
 }) => {
   return (
-    <div className="mb-12">
-      <div className="flex items-center gap-3 mb-6">
-        <span className="text-xl">{icon}</span>
-        <h2 className="text-2xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">
-          {title}
-        </h2>
-        <div className="px-3 py-1 bg-slate-100 text-slate-600 rounded-full text-sm font-medium">
-          {tasks.length}
+    <section className="surface-card space-y-4 rounded-2xl border border-slate-200 p-6 shadow-sm">
+      <header className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2 text-sm font-semibold text-slate-500">
+            <span className="text-lg">{icon}</span>
+            <span>{caption}</span>
+          </div>
+          <h2 className="mt-1 text-xl font-semibold text-slate-900">{title}</h2>
         </div>
-      </div>
+        <span className="inline-flex items-center justify-center rounded-full bg-slate-100 px-3 py-1 text-sm font-medium text-slate-600">
+          {tasks.length} {tasks.length === 1 ? "task" : "tasks"}
+        </span>
+      </header>
 
       {tasks.length === 0 ? (
-        <div className="text-center py-16">
-          <div className="text-2xl mb-4 opacity-50">📝</div>
-          <p className="text-xl text-gray-400 font-medium">{emptyMessage}</p>
+        <div className="surface-muted rounded-xl border border-dashed border-slate-200 py-10 text-center text-sm text-slate-500">
+          {emptyMessage}
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="space-y-4">
           {tasks.map((task) => (
             <TaskItem
               key={task.id}
               task={task}
               onComplete={onComplete}
               onDelete={onDelete}
+              canComplete={allowComplete}
+              isBusy={isBusy}
             />
           ))}
         </div>
       )}
-    </div>
+    </section>
   );
 };
 
 const TaskManager: React.FC = () => {
   const [tasks, setTasks] = useState<TaskListResponse | null>(null);
   const [newTaskDescription, setNewTaskDescription] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [selectedDate, setSelectedDate] = useState("");
+  const [selectedTime, setSelectedTime] = useState("");
   const [backendStatus, setBackendStatus] = useState<BackendStatus | null>(
     null
   );
-
-  // New feature state
-  const [isTemplatesOpen, setIsTemplatesOpen] = useState(false);
-  const [selectedDate, setSelectedDate] = useState("");
-  const [selectedTime, setSelectedTime] = useState("");
-  const [showDateTimeInputs, setShowDateTimeInputs] = useState(false);
   const [aiBrief, setAIBrief] = useState<AIBriefData | null>(null);
   const [isBriefLoading, setIsBriefLoading] = useState(false);
   const [briefError, setBriefError] = useState<string | null>(null);
+  const [isFetching, setIsFetching] = useState(false);
+  const [isWorking, setIsWorking] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [actionFeedback, setActionFeedback] = useState<ActionFeedback | null>(
+    null
+  );
+  const [showCompleted, setShowCompleted] = useState(true);
+  const [templateSuggestions, setTemplateSuggestions] = useState<
+    TaskTemplate[]
+  >([]);
+  const [dateSuggestion, setDateSuggestion] = useState<ParsedDate | null>(null);
 
-  const taskLookup = useMemo(() => {
-    if (!tasks) return new Map<TaskId, Task>();
-    const map = new Map<TaskId, Task>();
-    tasks.data.pending_tasks.forEach((task) => map.set(task.id, task));
-    tasks.data.completed_tasks.forEach((task) => map.set(task.id, task));
-    return map;
-  }, [tasks]);
-
-  // Initialize services
   const { theme, toggleTheme } = useTheme();
-  const { scheduleReminder } = useSmartNotifications();
+  const { scheduleReminder, cancelReminder, requestPermission } =
+    useSmartNotifications();
 
-  const featuredTemplates = useMemo(() => {
-    const builtIns = TaskTemplateService.getTemplates();
-    const customs = CustomTemplateService.getCustomTemplates();
+  const featuredTemplates = CustomTemplateService.getAllTemplates().slice(0, 6);
 
-    return [...customs, ...builtIns].slice(0, 8);
-  }, []);
+  useEffect(() => {
+    void requestPermission();
+  }, [requestPermission]);
+
+  useEffect(() => {
+    const text = newTaskDescription.trim();
+    if (text.length < 3) {
+      setTemplateSuggestions([]);
+      return;
+    }
+
+    const allTemplates = CustomTemplateService.getAllTemplates();
+    const suggestions = new Map<string, TaskTemplate>();
+
+    KEYWORD_TEMPLATE_RULES.forEach((rule) => {
+      if (!rule.pattern.test(text)) return;
+      rule.templateIds.forEach((templateId) => {
+        const match = allTemplates.find(
+          (template) => template.id === templateId
+        );
+        if (match) {
+          suggestions.set(match.id, match);
+        }
+      });
+    });
+
+    if (suggestions.size < 4) {
+      const lowerText = text.toLowerCase();
+      for (const template of allTemplates) {
+        if (suggestions.size >= 4) break;
+        const matchesQuery =
+          template.name.toLowerCase().includes(lowerText) ||
+          template.description.toLowerCase().includes(lowerText) ||
+          template.subtasks?.some((subtask) =>
+            subtask.toLowerCase().includes(lowerText)
+          );
+        if (matchesQuery) {
+          suggestions.set(template.id, template);
+        }
+      }
+    }
+
+    setTemplateSuggestions(Array.from(suggestions.values()).slice(0, 4));
+  }, [newTaskDescription]);
+
+  useEffect(() => {
+    if (!newTaskDescription.trim() || selectedDate) {
+      setDateSuggestion(null);
+      return;
+    }
+
+    const parsed = SmartDateParser.parseFromText(newTaskDescription);
+    setDateSuggestion(parsed);
+  }, [newTaskDescription, selectedDate]);
+
+  const applyDateSuggestion = useCallback(() => {
+    if (!dateSuggestion) return;
+
+    const suggestionDate = dateSuggestion.date;
+    const isoDate = suggestionDate.toISOString();
+    setSelectedDate(isoDate.slice(0, 10));
+
+    const hours = suggestionDate.getHours();
+    const minutes = suggestionDate.getMinutes();
+    if (hours !== 0 || minutes !== 0) {
+      const timeString = `${String(hours).padStart(2, "0")}:${String(
+        minutes
+      ).padStart(2, "0")}`;
+      setSelectedTime(timeString);
+    } else {
+      setSelectedTime("");
+    }
+
+    setDateSuggestion(null);
+  }, [dateSuggestion]);
 
   const fetchAIBrief = useCallback(async () => {
     setIsBriefLoading(true);
@@ -306,72 +376,102 @@ const TaskManager: React.FC = () => {
       } else {
         setAIBrief(response.data);
         setBriefError(
-          response.error ||
-            "AI brief is in fallback mode. We'll keep trying to reach the backend."
+          response.error || "AI brief is currently using fallback insights."
         );
       }
-    } catch (error) {
-      console.error("Error generating AI daily brief:", error);
-      setBriefError("Unable to generate the AI brief right now.");
+    } catch (err) {
+      console.error("Error generating AI daily brief:", err);
+      setBriefError("Unable to generate a brief right now.");
     } finally {
       setIsBriefLoading(false);
     }
   }, []);
 
-  // Update backend status periodically
-  useEffect(() => {
-    const updateStatus = () => {
-      setBackendStatus(autoSwitchingTaskService.getBackendStatus());
-    };
-
-    updateStatus();
-    const interval = setInterval(updateStatus, 2000);
-    return () => clearInterval(interval);
-  }, []);
-
   const loadTasks = useCallback(async () => {
-    setIsLoading(true);
+    setIsFetching(true);
     setError(null);
     try {
       const response = await autoSwitchingTaskService.getTasks();
       if (response.success) {
         setTasks(response);
+        setError(null);
         void fetchAIBrief();
       } else {
-        setError("Failed to load tasks");
+        setTasks(response);
+        setError("We couldn't load tasks from the server.");
       }
-    } catch (error) {
-      console.error("Error loading tasks:", error);
+    } catch (err) {
+      console.error("Error loading tasks:", err);
       setError("Unable to connect to the AI Task Manager service.");
+    } finally {
+      setIsFetching(false);
     }
-    setIsLoading(false);
   }, [fetchAIBrief]);
+
+  const removeOfflineTask = useCallback((taskId: TaskId) => {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          const filtered = parsed.filter(
+            (task: { id: string }) => String(task.id) !== String(taskId)
+          );
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
+        }
+      }
+    } catch {
+      // Ignore storage failures
+    }
+
+    setTasks((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        data: {
+          ...prev.data,
+          pending_tasks: prev.data.pending_tasks.filter(
+            (task) => task.id !== taskId
+          ),
+          completed_tasks: prev.data.completed_tasks.filter(
+            (task) => task.id !== taskId
+          ),
+        },
+      };
+    });
+  }, []);
 
   const createTask = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newTaskDescription.trim()) return;
+    if (!newTaskDescription.trim()) {
+      setActionFeedback({
+        type: "info",
+        message: "Add a short description before saving.",
+      });
+      return;
+    }
 
-    setIsLoading(true);
+    setIsWorking(true);
     try {
-      // Parse smart dates from task description first
       const parsedDate = SmartDateParser.parseFromText(newTaskDescription);
       let taskDescription = newTaskDescription.trim();
       let finalDueDate: Date | null = null;
 
-      // Check if explicit date/time was provided
       if (selectedDate) {
-        // Combine selected date and time
-        const dateTime = selectedTime
+        const dateTimeString = selectedTime
           ? `${selectedDate}T${selectedTime}`
-          : `${selectedDate}T09:00`; // Default to 9 AM if no time specified
-
-        finalDueDate = new Date(dateTime);
-        taskDescription = `${taskDescription} (due: ${finalDueDate.toLocaleDateString()} at ${finalDueDate.toLocaleTimeString(
-          [],
-          { hour: "2-digit", minute: "2-digit" }
-        )})`;
+          : `${selectedDate}T09:00`;
+        finalDueDate = new Date(dateTimeString);
+        const timeLabel = selectedTime
+          ? finalDueDate.toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            })
+          : undefined;
+        taskDescription = `${taskDescription} (due: ${finalDueDate.toLocaleDateString()}${
+          timeLabel ? ` at ${timeLabel}` : ""
+        })`;
       } else if (parsedDate?.date) {
-        // Use smart-parsed date if no explicit date provided
         finalDueDate = parsedDate.date;
         taskDescription = `${taskDescription} (due: ${finalDueDate.toLocaleDateString()})`;
       }
@@ -379,13 +479,16 @@ const TaskManager: React.FC = () => {
       const response = await autoSwitchingTaskService.createTask(
         taskDescription
       );
+
       if (response.success) {
         setNewTaskDescription("");
         setSelectedDate("");
         setSelectedTime("");
-        setShowDateTimeInputs(false);
+        setActionFeedback({
+          type: "success",
+          message: "Task added and queued for AI enrichment.",
+        });
 
-        // Schedule smart notifications for the new task if it has a due date
         if (finalDueDate && response.task) {
           scheduleReminder({
             id: String(response.task.id),
@@ -397,626 +500,573 @@ const TaskManager: React.FC = () => {
 
         await loadTasks();
       } else {
-        setError(response.error || "Failed to create task");
+        setActionFeedback({
+          type: "error",
+          message: response.error || "Failed to create task.",
+        });
       }
-    } catch (error) {
-      console.error("Error creating task:", error);
-      setError("Failed to create task");
+    } catch (err) {
+      console.error("Error creating task:", err);
+      setActionFeedback({
+        type: "error",
+        message: "We couldn't save that task. Try again in a moment.",
+      });
+    } finally {
+      setIsWorking(false);
     }
-    setIsLoading(false);
   };
 
   const completeTask = async (taskId: TaskId) => {
-    setIsLoading(true);
+    setIsWorking(true);
     try {
       const response = await autoSwitchingTaskService.completeTask(taskId);
       if (response.success) {
+        setActionFeedback({
+          type: "success",
+          message: "Task marked complete.",
+        });
+        await cancelReminder(taskId);
         await loadTasks();
+      } else if (response.error?.includes("404")) {
+        removeOfflineTask(taskId);
+        await cancelReminder(taskId);
+        setActionFeedback({
+          type: "info",
+          message:
+            "That task existed only on this device. It has been cleared so you can recreate it on the server.",
+        });
       } else {
-        setError(response.error || "Failed to complete task");
+        setActionFeedback({
+          type: "error",
+          message: response.error || "Failed to complete task.",
+        });
       }
-    } catch (error) {
-      console.error("Error completing task:", error);
-      setError("Failed to complete task");
+    } catch (err) {
+      console.error("Error completing task:", err);
+      setActionFeedback({
+        type: "error",
+        message: "Unable to complete the task right now. Please try again.",
+      });
+    } finally {
+      setIsWorking(false);
     }
-    setIsLoading(false);
   };
 
   const deleteTask = async (taskId: TaskId) => {
-    setIsLoading(true);
+    setIsWorking(true);
     try {
       const response = await autoSwitchingTaskService.deleteTask(taskId);
       if (response.success) {
+        removeOfflineTask(taskId);
+        setActionFeedback({
+          type: "success",
+          message: "Task removed.",
+        });
+        await cancelReminder(taskId);
         await loadTasks();
       } else {
-        setError(response.error || "Failed to delete task");
+        setActionFeedback({
+          type: "error",
+          message: response.error || "Failed to delete task.",
+        });
       }
-    } catch (error) {
-      console.error("Error deleting task:", error);
-      setError("Failed to delete task");
+    } catch (err) {
+      console.error("Error deleting task:", err);
+      setActionFeedback({
+        type: "error",
+        message: "Unable to delete the task right now.",
+      });
+    } finally {
+      setIsWorking(false);
     }
-    setIsLoading(false);
   };
 
-  // Handle template selection
   const handleTemplateSelect = (template: TaskTemplate) => {
     const draft = `${template.icon} ${template.name} — ${template.description}`;
     setNewTaskDescription(draft.trim());
     setSelectedDate("");
     setSelectedTime("");
-    setShowDateTimeInputs(false);
-    setIsTemplatesOpen(false);
+    setTemplateSuggestions([]);
+    setDateSuggestion(null);
   };
 
   useEffect(() => {
     void loadTasks();
   }, [loadTasks]);
 
-  const getCompletionRate = () => {
-    if (!tasks?.data.stats) return 0;
-    return Math.round(tasks.data.stats.completion_rate * 100);
-  };
+  useEffect(() => {
+    const updateStatus = () => {
+      setBackendStatus(autoSwitchingTaskService.getBackendStatus());
+    };
+
+    updateStatus();
+    const interval = window.setInterval(updateStatus, 2000);
+    return () => window.clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    if (backendStatus?.isAvailable) {
+      try {
+        localStorage.removeItem(STORAGE_KEY);
+      } catch {
+        // Ignore storage errors
+      }
+    }
+  }, [backendStatus?.isAvailable]);
+
+  useEffect(() => {
+    if (!actionFeedback) return;
+    const timeoutId = window.setTimeout(
+      () => setActionFeedback(null),
+      actionFeedback.type === "error" ? 6000 : 4000
+    );
+    return () => window.clearTimeout(timeoutId);
+  }, [actionFeedback]);
+
+  const pendingTasks = tasks?.data.pending_tasks ?? [];
+  const completedTasks = tasks?.data.completed_tasks ?? [];
+  const totalTasks = pendingTasks.length + completedTasks.length;
+  const completionRate = tasks
+    ? Math.round(tasks.data.stats.completion_rate * 100)
+    : 0;
+
+  const connectionLabel = backendStatus
+    ? backendStatus.isAvailable
+      ? "Connected to Jac backend"
+      : "Local simulation"
+    : "Checking backend…";
+  const connectionTone = backendStatus
+    ? backendStatus.isAvailable
+      ? "bg-emerald-100 text-emerald-700"
+      : "bg-amber-100 text-amber-700"
+    : "bg-slate-100 text-slate-600";
+  const connectionDot = backendStatus
+    ? backendStatus.isAvailable
+      ? "bg-emerald-500"
+      : "bg-amber-500"
+    : "bg-slate-400";
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top,_rgba(99,102,241,0.18)_0,_rgba(226,232,240,0.92)_40%,_rgba(248,250,252,1)_75%)] text-slate-800">
-      <div className="pointer-events-none absolute inset-0">
-        <div className="absolute -top-28 left-1/2 h-96 w-96 -translate-x-1/2 rounded-full bg-brand-500/20 blur-3xl" />
-        <div className="absolute -bottom-40 right-1/3 h-80 w-80 rounded-full bg-cyan-300/20 blur-3xl" />
-      </div>
-
-      <div className="relative z-10 mx-auto flex max-w-6xl flex-col gap-12 px-4 py-12 sm:px-6 lg:px-8">
-        <header className="grid items-start gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
-          <div className="relative overflow-hidden rounded-4xl border border-white/60 bg-surface-100 p-10 shadow-card backdrop-blur-xl">
-            <div
-              className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-brand-500/20 blur-3xl"
-              aria-hidden="true"
-            />
-            <div className="inline-flex items-center gap-2 rounded-full bg-brand-50 px-3 py-1 text-sm font-medium text-brand-600">
-              <span>AI Productivity Workspace</span>
-              <span className="h-1.5 w-1.5 rounded-full bg-brand-500"></span>
+    <div className="min-h-screen surface-root" data-theme={theme}>
+      <header className="surface-card border-b border-slate-200">
+        <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-6 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-indigo-600 text-lg font-semibold text-white">
+              AI
             </div>
-            <h1 className="mt-6 font-display text-4xl tracking-tight text-slate-900 sm:text-5xl">
-              AI Task Manager
-            </h1>
-            <p className="mt-4 max-w-xl text-lg text-slate-600">
-              Orchestrate tasks, insights, and intelligent reminders inside a
-              calm, professional dashboard powered by Tailwind CSS 4.
-            </p>
-
-            <div className="mt-8 flex flex-wrap gap-4">
-              <div className="flex items-center gap-3 rounded-2xl border border-white/60 bg-white/80 px-4 py-3 text-sm text-slate-600 shadow-sm backdrop-blur">
-                <span className="grid h-9 w-9 place-items-center rounded-xl bg-brand-500/10 text-xl text-brand-600">
-                  🤖
-                </span>
-                <div>
-                  <p className="font-medium text-slate-900">
-                    Jac AI integration
-                  </p>
-                  <p className="text-xs text-slate-500">
-                    Real-time enrichment & categorisation
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3 rounded-2xl border border-white/60 bg-white/70 px-4 py-3 text-sm text-slate-600 shadow-sm backdrop-blur">
-                <span className="grid h-9 w-9 place-items-center rounded-xl bg-emerald-500/10 text-xl text-emerald-600">
-                  🔔
-                </span>
-                <div>
-                  <p className="font-medium text-slate-900">Smart reminders</p>
-                  <p className="text-xs text-slate-500">
-                    Service worker & notifications enabled
-                  </p>
-                </div>
-              </div>
+            <div>
+              <h1 className="text-2xl font-bold text-slate-900">
+                AI Task Manager
+              </h1>
+              <p className="text-sm text-slate-500">
+                Plan your day with live Jac intelligence and calm, clear UI.
+              </p>
             </div>
           </div>
 
-          <div className="flex flex-col gap-6">
-            <div className="flex justify-end">
-              <button
-                onClick={toggleTheme}
-                className="flex items-center gap-3 rounded-full border border-white/50 bg-white/80 px-4 py-2 text-sm font-medium text-slate-700 shadow-sm backdrop-blur transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-md"
-                title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
-              >
-                <span className="grid h-8 w-8 place-items-center rounded-full bg-slate-900 text-white">
-                  {theme === "dark" ? "☀️" : "🌙"}
-                </span>
-                <span>Toggle theme</span>
-              </button>
-            </div>
+          <div className="flex items-center gap-3">
+            <span
+              className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold ${connectionTone}`}
+            >
+              <span className={`h-2 w-2 rounded-full ${connectionDot}`}></span>
+              {connectionLabel}
+            </span>
+            <button
+              type="button"
+              onClick={toggleTheme}
+              className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-base shadow-sm transition hover:border-indigo-300 hover:text-indigo-600"
+              title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+            >
+              <span aria-hidden>{theme === "dark" ? "☀️" : "🌙"}</span>
+              <span className="sr-only">Toggle theme</span>
+            </button>
+          </div>
+        </div>
+      </header>
 
-            <div className="relative overflow-hidden rounded-4xl border border-white/60 bg-white/85 p-8 shadow-card backdrop-blur">
-              <div className="flex items-start justify-between gap-4">
+      <main className="mx-auto max-w-6xl px-4 py-10">
+        <div className="mx-auto flex max-w-4xl flex-col gap-4">
+          {actionFeedback && (
+            <div
+              className={`rounded-xl border px-4 py-3 text-sm shadow-sm ${
+                actionFeedback.type === "success"
+                  ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                  : actionFeedback.type === "error"
+                  ? "border-rose-200 bg-rose-50 text-rose-700"
+                  : "border-sky-200 bg-sky-50 text-sky-700"
+              }`}
+            >
+              {actionFeedback.message}
+            </div>
+          )}
+        </div>
+
+        {error && (
+          <div className="mx-auto mt-6 max-w-4xl rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 shadow-sm">
+            {error}
+          </div>
+        )}
+
+        <div className="mt-10 grid gap-8 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,0.8fr)]">
+          <section className="space-y-6">
+            <div className="surface-card rounded-2xl border border-slate-200 p-6 shadow-sm">
+              <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">
-                    Quick add
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                    Quick capture
                   </p>
-                  <h2 className="mt-2 text-2xl font-semibold text-slate-900">
-                    Capture your next task instantly
+                  <h2 className="mt-1 text-2xl font-semibold text-slate-900">
+                    Add your next task
                   </h2>
                   <p className="mt-2 text-sm text-slate-500">
-                    AI-enriched categorisation happens as soon as you save, so
-                    you can stay in flow.
+                    AI assigns category and priority automatically. Prefer a
+                    template? Choose one below and edit before saving.
                   </p>
                 </div>
-                <span className="grid h-12 w-12 place-items-center rounded-3xl bg-brand-500/10 text-2xl text-brand-600">
-                  ⚡
-                </span>
               </div>
 
-              <form onSubmit={createTask} className="mt-6 space-y-5">
-                <div className="space-y-2">
-                  <label
-                    className="text-sm font-semibold text-slate-600"
-                    htmlFor="task-entry"
-                  >
-                    Task summary
-                  </label>
-                  <div className="relative">
+              <form onSubmit={createTask} className="mt-6 space-y-6">
+                <div className="space-y-3">
+                  <div className="space-y-2">
+                    <label
+                      className="text-sm font-medium text-slate-600"
+                      htmlFor="task-entry"
+                    >
+                      Task summary
+                    </label>
                     <input
                       id="task-entry"
                       type="text"
                       value={newTaskDescription}
                       onChange={(e) => setNewTaskDescription(e.target.value)}
-                      placeholder="Describe your task... AI will automatically categorise it ✨"
-                      className="w-full rounded-2xl border-2 border-slate-200/60 bg-white/90 px-5 py-4 text-base shadow-inner transition-all duration-300 placeholder:text-slate-400 focus:border-brand-400 focus:ring-4 focus:ring-brand-500/10 disabled:opacity-60"
-                      disabled={isLoading}
+                      placeholder="Describe what needs to happen next"
+                      className="w-full rounded-xl border border-slate-200 px-4 py-3 text-base shadow-inner transition placeholder:text-slate-400 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200 disabled:opacity-60"
+                      disabled={isWorking}
+                      autoComplete="off"
                     />
-                    <div className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-300">
-                      <svg
-                        className="h-5 w-5"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M13 10V3L4 14h7v7l9-11h-7z"
-                        />
-                      </svg>
-                    </div>
                   </div>
-                </div>
 
-                <div className="flex flex-wrap items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setShowDateTimeInputs(!showDateTimeInputs)}
-                    className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition-all duration-200 ${
-                      showDateTimeInputs
-                        ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                        : "border-slate-200/70 bg-white/90 text-slate-600 hover:border-brand-200 hover:text-brand-600"
-                    }`}
-                  >
-                    <span>📅</span>
-                    <span>Schedule</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setIsTemplatesOpen(true)}
-                    className="inline-flex items-center gap-2 rounded-full border border-indigo-200/70 bg-white/90 px-4 py-2 text-sm font-medium text-indigo-600 transition-all duration-200 hover:border-brand-300 hover:bg-brand-50/40"
-                  >
-                    <span>📋</span>
-                    <span>Browse templates</span>
-                  </button>
-                </div>
-
-                {showDateTimeInputs && (
-                  <div className="rounded-2xl border border-slate-200/70 bg-white/95 p-5 shadow-sm">
-                    <div className="flex flex-col gap-4 sm:flex-row">
-                      <div className="flex-1">
-                        <label className="block text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                          Due date
-                        </label>
-                        <input
-                          type="date"
-                          value={selectedDate}
-                          onChange={(e) => setSelectedDate(e.target.value)}
-                          aria-label="Task due date"
-                          className="mt-2 w-full rounded-xl border border-slate-200/70 bg-white px-3 py-3 text-sm shadow-inner transition-all duration-300 focus:border-brand-400 focus:ring-2 focus:ring-brand-300/40"
-                        />
-                      </div>
-                      <div className="flex-1">
-                        <label className="block text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                          Due time (optional)
-                        </label>
-                        <input
-                          type="time"
-                          value={selectedTime}
-                          onChange={(e) => setSelectedTime(e.target.value)}
-                          aria-label="Task due time"
-                          className="mt-2 w-full rounded-xl border border-slate-200/70 bg-white px-3 py-3 text-sm shadow-inner transition-all duration-300 focus:border-brand-400 focus:ring-2 focus:ring-brand-300/40"
-                        />
-                      </div>
-                      <div className="flex items-end">
+                  {templateSuggestions.length > 0 && (
+                    <div className="surface-highlight rounded-xl border border-indigo-100 p-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-indigo-600">
+                          AI suggestions
+                        </p>
                         <button
                           type="button"
-                          onClick={() => {
-                            setSelectedDate("");
-                            setSelectedTime("");
-                            setShowDateTimeInputs(false);
-                          }}
-                          className="inline-flex items-center gap-2 rounded-xl border border-slate-200/60 bg-slate-100 px-4 py-3 text-sm font-medium text-slate-600 transition-all duration-200 hover:bg-slate-200"
+                          onClick={() => setTemplateSuggestions([])}
+                          className="text-xs font-medium text-indigo-600 hover:text-indigo-500"
                         >
-                          <span>✕</span>
-                          <span>Clear</span>
+                          Clear
                         </button>
                       </div>
+                      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                        {templateSuggestions.map((template) => (
+                          <button
+                            key={`suggestion-${template.id}`}
+                            type="button"
+                            onClick={() => handleTemplateSelect(template)}
+                            className="surface-card rounded-xl border border-indigo-100 p-3 text-left transition hover:border-indigo-200"
+                          >
+                            <div className="flex items-center gap-2">
+                              <span className="text-lg">{template.icon}</span>
+                              <span className="text-sm font-semibold text-slate-800">
+                                {template.name}
+                              </span>
+                            </div>
+                            <p className="mt-1 text-xs text-slate-500">
+                              {template.description}
+                            </p>
+                          </button>
+                        ))}
+                      </div>
                     </div>
-                    <p className="mt-4 rounded-xl bg-slate-50/80 px-4 py-2 text-xs text-slate-500">
-                      💡 Tip: you can still drop phrases like "tomorrow at 3pm"
-                      directly in the task summary.
+                  )}
+                </div>
+
+                <div className="surface-muted rounded-2xl border border-slate-200 p-4">
+                  <div className="flex flex-wrap items-baseline justify-between gap-3">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                      Schedule
                     </p>
+                    <span className="text-xs text-slate-500">
+                      Provide timing so AI can prioritise the task effectively.
+                    </span>
                   </div>
-                )}
+
+                  <div className="mt-4 grid gap-4 sm:grid-cols-3">
+                    <div className="space-y-2 sm:col-span-2">
+                      <label
+                        className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500"
+                        htmlFor="task-due-date"
+                      >
+                        Due date
+                      </label>
+                      <input
+                        type="date"
+                        id="task-due-date"
+                        value={selectedDate}
+                        onChange={(e) => setSelectedDate(e.target.value)}
+                        className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label
+                        className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500"
+                        htmlFor="task-due-time"
+                      >
+                        Time (optional)
+                      </label>
+                      <input
+                        type="time"
+                        id="task-due-time"
+                        value={selectedTime}
+                        onChange={(e) => setSelectedTime(e.target.value)}
+                        className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200"
+                      />
+                    </div>
+                  </div>
+
+                  {dateSuggestion && !selectedDate && (
+                    <div className="surface-highlight mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg px-3 py-2 text-xs text-indigo-700">
+                      <span>
+                        AI spotted “{dateSuggestion.parsedText}” →{" "}
+                        {dateSuggestion.date.toLocaleDateString(undefined, {
+                          month: "short",
+                          day: "numeric",
+                        })}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => applyDateSuggestion()}
+                        className="text-xs font-semibold text-indigo-600 hover:text-indigo-500"
+                      >
+                        Use suggestion
+                      </button>
+                    </div>
+                  )}
+
+                  <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500">
+                    <p>
+                      You can also type phrases like “tomorrow at 2pm” directly
+                      into the summary — we’ll detect them automatically.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedDate("");
+                        setSelectedTime("");
+                        setDateSuggestion(null);
+                      }}
+                      className="inline-flex items-center gap-1 text-sm font-medium text-slate-500 hover:text-slate-700"
+                    >
+                      ✕ Clear
+                    </button>
+                  </div>
+                </div>
 
                 <button
                   type="submit"
-                  disabled={isLoading || !newTaskDescription.trim()}
-                  className="inline-flex w-full items-center justify-center gap-3 rounded-2xl bg-gradient-to-r from-brand-500 to-indigo-600 px-6 py-3 text-base font-semibold text-white shadow-lg transition-all duration-300 hover:from-brand-600 hover:to-indigo-700 hover:shadow-brand disabled:cursor-not-allowed disabled:opacity-60"
+                  disabled={isWorking || !newTaskDescription.trim()}
+                  className="inline-flex w-full items-center justify-center gap-3 rounded-xl bg-indigo-600 px-6 py-3 text-base font-semibold text-white shadow-lg transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-indigo-300"
                 >
-                  {isLoading ? (
-                    <>
-                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
-                      Saving...
-                    </>
+                  {isWorking ? (
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/50 border-t-white" />
                   ) : (
-                    <>
-                      <svg
-                        className="h-5 w-5"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M12 4v16m8-8H4"
-                        />
-                      </svg>
-                      Add task
-                    </>
+                    <span>Save task</span>
                   )}
                 </button>
               </form>
 
               {featuredTemplates.length > 0 && (
-                <div className="mt-8">
-                  <div className="flex items-center justify-between gap-4">
-                    <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">
-                      Featured templates
+                <div className="mt-8 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                      Quick templates
                     </p>
-                    <button
-                      type="button"
-                      onClick={() => setIsTemplatesOpen(true)}
-                      className="text-sm font-medium text-brand-600 hover:text-brand-500"
-                    >
-                      View all
-                    </button>
                   </div>
-                  <div className="-mx-2 mt-4 flex snap-x snap-mandatory gap-4 overflow-x-auto pb-2 px-2">
+                  <div className="grid gap-3 sm:grid-cols-2">
                     {featuredTemplates.map((template) => (
                       <button
                         key={template.id}
                         type="button"
                         onClick={() => handleTemplateSelect(template)}
-                        className="group relative min-w-[220px] snap-start rounded-3xl border border-white/60 bg-white/80 p-4 text-left shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-brand-400 hover:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
+                        className="surface-muted rounded-2xl border border-slate-200 p-4 text-left text-sm text-slate-600 transition hover:border-indigo-200 hover:text-slate-700"
                       >
-                        <div className="flex items-start justify-between gap-3">
-                          <span className="grid h-9 w-9 place-items-center rounded-xl bg-brand-500/10 text-lg">
-                            {template.icon}
-                          </span>
-                          <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-medium text-slate-500">
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="text-lg">{template.icon}</span>
+                          <span className="surface-badge rounded-full px-2 py-1 text-xs font-medium text-slate-500">
                             {template.priority}
                           </span>
                         </div>
-                        <p className="mt-4 text-sm font-semibold text-slate-800 group-hover:text-brand-600">
+                        <p className="mt-3 font-semibold text-slate-800">
                           {template.name}
                         </p>
-                        <p className="mt-2 text-xs text-slate-500 line-clamp-2">
+                        <p className="mt-1 text-xs text-slate-500">
                           {template.description}
                         </p>
-                        {template.estimatedTime && (
-                          <p className="mt-3 text-xs font-medium text-slate-400">
-                            ⏱ {template.estimatedTime}
-                          </p>
-                        )}
                       </button>
                     ))}
                   </div>
                 </div>
               )}
             </div>
-          </div>
-        </header>
 
-        <section className="grid gap-8 lg:grid-cols-[minmax(0,1.45fr)_minmax(0,0.75fr)]">
-          <div className="space-y-6">
-            {backendStatus && (
-              <div
-                className={`rounded-3xl border border-white/60 px-6 py-5 shadow-card backdrop-blur ${
-                  backendStatus.isAvailable
-                    ? "bg-emerald-50/80"
-                    : "bg-sky-50/80"
-                }`}
-              >
-                <div className="flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-3">
-                    <span
-                      className={`grid h-10 w-10 place-items-center rounded-2xl text-lg text-white ${
-                        backendStatus.isAvailable
-                          ? "bg-emerald-500"
-                          : "bg-sky-500"
-                      }`}
-                    >
-                      {backendStatus.isAvailable ? "🚀" : "📱"}
-                    </span>
-                    <div>
-                      <p className="text-sm font-semibold text-slate-800">
-                        {backendStatus.isAvailable
-                          ? "Jac AI backend active"
-                          : "Local intelligent mode"}
-                      </p>
-                      <p className="text-xs text-slate-500">
-                        {backendStatus.isAvailable
-                          ? `Version ${backendStatus.version} • real-time enrichment`
-                          : "Pattern analysis with offline persistence"}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex flex-col items-end gap-2 text-xs font-medium uppercase tracking-[0.2em] text-slate-500">
-                    <span className="inline-flex items-center gap-2 rounded-full bg-white/60 px-3 py-1 text-[0.7rem] text-slate-600">
-                      <span
-                        className={`h-2 w-2 rounded-full ${
-                          backendStatus.isAvailable
-                            ? "bg-emerald-500"
-                            : "bg-sky-500"
-                        }`}
-                      ></span>
-                      {backendStatus.mode.replace("-", " ")}
-                    </span>
-                    {backendStatus.tasks_count !== undefined && (
-                      <span>{backendStatus.tasks_count} tasks synced</span>
-                    )}
-                  </div>
-                </div>
+            {isFetching && totalTasks === 0 ? (
+              <div className="surface-card rounded-2xl border border-slate-200 p-10 text-center text-sm text-slate-500 shadow-sm">
+                <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-indigo-500"></div>
+                <p className="mt-4 font-medium">Loading your tasks…</p>
               </div>
+            ) : (
+              <TaskList
+                tasks={pendingTasks}
+                title="Active tasks"
+                caption="What needs attention"
+                emptyMessage="🎉 All clear! Create a new task when you're ready."
+                icon="🗂️"
+                onComplete={completeTask}
+                onDelete={deleteTask}
+                isBusy={isWorking}
+              />
             )}
 
-            {error && (
-              <div className="rounded-3xl border border-red-100 bg-red-50/90 px-6 py-5 shadow-sm">
-                <div className="flex items-start gap-3">
-                  <span className="grid h-8 w-8 place-items-center rounded-xl bg-red-500 text-white">
-                    ⚠️
-                  </span>
-                  <div>
-                    <p className="text-sm font-semibold text-red-700">
-                      Something went wrong
-                    </p>
-                    <p className="text-sm text-red-600">{error}</p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {isLoading && !tasks && (
-              <div className="flex flex-col items-center justify-center rounded-3xl border border-white/60 bg-white/85 px-6 py-16 text-center shadow-card">
-                <span className="h-12 w-12 animate-spin rounded-full border-4 border-brand-200 border-t-brand-500"></span>
-                <p className="mt-4 text-sm font-medium text-slate-600">
-                  Warming up your AI workspace...
-                </p>
-              </div>
-            )}
-
-            {tasks && (
-              <div className="space-y-8">
-                <TaskList
-                  tasks={tasks.data.pending_tasks}
-                  onComplete={completeTask}
-                  onDelete={deleteTask}
-                  title="Pending Tasks"
-                  emptyMessage="🎉 All caught up! No pending tasks."
-                  icon="🔄"
-                />
-
-                {tasks.data.completed_tasks.length > 0 && (
+            {completedTasks.length > 0 && (
+              <div className="space-y-3">
+                <button
+                  type="button"
+                  onClick={() => setShowCompleted((prev) => !prev)}
+                  className="flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-slate-700"
+                >
+                  <span>{showCompleted ? "▾" : "▸"}</span>
+                  <span>Completed tasks ({completedTasks.length})</span>
+                </button>
+                {showCompleted && (
                   <TaskList
-                    tasks={tasks.data.completed_tasks}
-                    onComplete={completeTask}
-                    onDelete={deleteTask}
-                    title="Completed Tasks"
+                    tasks={completedTasks}
+                    title="Completed"
+                    caption="Wins so far"
                     emptyMessage="No completed tasks yet."
                     icon="✅"
+                    onComplete={completeTask}
+                    onDelete={deleteTask}
+                    isBusy={isWorking}
+                    allowComplete={false}
                   />
                 )}
               </div>
             )}
-          </div>
+          </section>
 
           <aside className="space-y-6">
+            {backendStatus && (
+              <div className="surface-card rounded-2xl border border-slate-200 p-6 shadow-sm">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                  Connection
+                </p>
+                <h3 className="mt-2 text-lg font-semibold text-slate-900">
+                  Backend status
+                </h3>
+                <p className="mt-2 text-sm text-slate-500">
+                  {backendStatus.isAvailable
+                    ? "You're synced with the hosted Jac backend. All tasks persist to PostgreSQL."
+                    : "You're in offline simulation. Tasks stay on this device until the backend is reachable."}
+                </p>
+                <dl className="mt-4 space-y-2 text-sm text-slate-600">
+                  <div className="flex items-center justify-between gap-4">
+                    <dt>Mode</dt>
+                    <dd className="font-medium">
+                      {backendStatus.mode === "jac-backend"
+                        ? "Jac backend"
+                        : "Local fallback"}
+                    </dd>
+                  </div>
+                  {typeof backendStatus.tasks_count === "number" && (
+                    <div className="flex items-center justify-between gap-4">
+                      <dt>Server tasks</dt>
+                      <dd className="font-medium">
+                        {backendStatus.tasks_count}
+                      </dd>
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between gap-4">
+                    <dt>Last checked</dt>
+                    <dd className="font-medium">
+                      {backendStatus.lastChecked
+                        ? new Date(
+                            backendStatus.lastChecked
+                          ).toLocaleTimeString([], {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })
+                        : "–"}
+                    </dd>
+                  </div>
+                </dl>
+              </div>
+            )}
+
             {(aiBrief || isBriefLoading || briefError) && (
-              <div className="rounded-3xl border border-white/60 bg-white/85 p-6 shadow-card backdrop-blur">
+              <div className="surface-card rounded-2xl border border-slate-200 p-6 shadow-sm">
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
                       Daily brief
                     </p>
                     <h3 className="mt-2 text-lg font-semibold text-slate-900">
-                      AI agenda coach
+                      Agenda snapshot
                     </h3>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium ${
-                        aiBrief?.aiAvailable
-                          ? "bg-emerald-100 text-emerald-700"
-                          : "bg-slate-100 text-slate-500"
-                      }`}
-                    >
-                      {aiBrief?.aiAvailable ? "Gemini" : "Local"}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => void fetchAIBrief()}
-                      disabled={isBriefLoading}
-                      className="inline-flex items-center gap-1 rounded-full border border-slate-200/70 bg-white/90 px-3 py-1 text-xs font-medium text-slate-600 transition-all duration-200 hover:border-brand-300 hover:text-brand-600 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      🔄 Refresh
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => void fetchAIBrief()}
+                    disabled={isBriefLoading}
+                    className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-600 transition hover:border-indigo-200 hover:text-indigo-600 disabled:cursor-progress disabled:opacity-60"
+                  >
+                    🔄 Refresh
+                  </button>
                 </div>
 
                 {isBriefLoading ? (
-                  <div className="mt-6 flex items-center gap-3 text-sm text-slate-500">
-                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-brand-200 border-t-brand-500"></span>
-                    Generating your brief...
-                  </div>
+                  <p className="mt-4 text-sm text-slate-500">
+                    Generating a tailored brief…
+                  </p>
                 ) : aiBrief ? (
-                  <div className="mt-4 space-y-5">
+                  <div className="mt-4 space-y-4">
                     <p className="text-sm text-slate-600">{aiBrief.summary}</p>
 
                     {aiBrief.agenda.length > 0 && (
                       <div className="space-y-3">
-                        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">
-                          Agenda
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                          Focus blocks
                         </p>
-                        <div className="space-y-3">
-                          {aiBrief.agenda.map((item, index) => {
-                            const relatedTasks = item.relatedTaskIds
-                              .map((id) => taskLookup.get(id))
-                              .filter((task): task is Task => Boolean(task));
-
-                            return (
-                              <div
-                                key={`${item.title}-${index}`}
-                                className="rounded-2xl border border-slate-200/70 bg-white/95 px-4 py-3 shadow-sm"
-                              >
-                                <div className="flex items-start justify-between gap-3">
-                                  <div>
-                                    <p className="text-sm font-semibold text-slate-800">
-                                      {item.title}
-                                    </p>
-                                    <p className="mt-1 text-xs text-slate-500">
-                                      {item.details}
-                                    </p>
-                                  </div>
-                                  <div className="flex flex-col items-end gap-1 text-xs text-slate-500">
-                                    {item.priority && (
-                                      <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-1 font-medium">
-                                        ⭐ {item.priority}
-                                      </span>
-                                    )}
-                                    {item.suggestedTime && (
-                                      <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-1 font-medium text-indigo-600">
-                                        🕑 {item.suggestedTime}
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-
-                                {relatedTasks.length > 0 ? (
-                                  <div className="mt-3 space-y-2">
-                                    <p className="text-[0.65rem] font-semibold uppercase tracking-[0.24em] text-slate-400">
-                                      Linked tasks
-                                    </p>
-                                    <div className="space-y-2">
-                                      {relatedTasks.map((relatedTask) => (
-                                        <div
-                                          key={relatedTask.id}
-                                          className="flex items-center justify-between gap-3 rounded-xl border border-slate-200/70 bg-white/90 px-3 py-2"
-                                        >
-                                          <div className="min-w-0">
-                                            <p className="truncate text-xs font-semibold text-slate-700">
-                                              {relatedTask.description}
-                                            </p>
-                                            <div className="mt-1 flex flex-wrap items-center gap-2 text-[0.65rem] text-slate-500">
-                                              <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">
-                                                {relatedTask.category}
-                                              </span>
-                                              {relatedTask.priority && (
-                                                <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 font-medium text-indigo-600">
-                                                  {relatedTask.priority}
-                                                </span>
-                                              )}
-                                              {relatedTask.due_date && (
-                                                <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 font-medium text-amber-600">
-                                                  ⏰
-                                                  {new Date(
-                                                    relatedTask.due_date
-                                                  ).toLocaleDateString(
-                                                    undefined,
-                                                    {
-                                                      month: "short",
-                                                      day: "numeric",
-                                                    }
-                                                  )}
-                                                </span>
-                                              )}
-                                              {typeof relatedTask.aiConfidence ===
-                                                "number" && (
-                                                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 font-medium text-emerald-600">
-                                                  🤖
-                                                  {Math.round(
-                                                    relatedTask.aiConfidence *
-                                                      100
-                                                  )}
-                                                  %
-                                                </span>
-                                              )}
-                                            </div>
-                                          </div>
-                                          {relatedTask.completed ? (
-                                            <span className="text-xs font-semibold text-emerald-600">
-                                              Done
-                                            </span>
-                                          ) : (
-                                            <button
-                                              type="button"
-                                              onClick={() =>
-                                                void completeTask(
-                                                  relatedTask.id
-                                                )
-                                              }
-                                              className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-600 transition-colors duration-200 hover:border-emerald-300 hover:bg-emerald-100"
-                                            >
-                                              ✅ Mark done
-                                            </button>
-                                          )}
-                                        </div>
-                                      ))}
-                                    </div>
-                                  </div>
-                                ) : item.relatedTaskIds.length > 0 ? (
-                                  <p className="mt-2 text-xs text-slate-400">
-                                    Linked tasks:{" "}
-                                    {item.relatedTaskIds.join(", ")}
-                                  </p>
-                                ) : null}
-                              </div>
-                            );
-                          })}
-                        </div>
+                        <ul className="space-y-3 text-sm text-slate-600">
+                          {aiBrief.agenda.map((item, index) => (
+                            <li
+                              key={`${item.title}-${index}`}
+                              className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2"
+                            >
+                              <p className="font-semibold text-slate-800">
+                                {item.title}
+                              </p>
+                              <p className="text-xs text-slate-500">
+                                {item.details}
+                              </p>
+                            </li>
+                          ))}
+                        </ul>
                       </div>
                     )}
 
                     {aiBrief.recommendations.length > 0 && (
-                      <div className="rounded-2xl bg-slate-50/80 px-4 py-3">
-                        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">
-                          Recommendations
+                      <div className="surface-muted rounded-xl px-3 py-2 text-sm text-slate-600">
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                          Tips from AI
                         </p>
-                        <ul className="mt-2 space-y-2 text-sm text-slate-600">
+                        <ul className="mt-2 space-y-1 text-sm">
                           {aiBrief.recommendations.map((tip, index) => (
-                            <li
-                              key={`${tip}-${index}`}
-                              className="flex items-start gap-2"
-                            >
-                              <span className="mt-1 text-brand-500">•</span>
-                              <span>{tip}</span>
+                            <li key={`${tip}-${index}`} className="flex gap-2">
+                              <span>•</span>
+                              <span className="flex-1">{tip}</span>
                             </li>
                           ))}
                         </ul>
@@ -1045,65 +1095,27 @@ const TaskManager: React.FC = () => {
             )}
 
             {tasks && (
-              <div className="rounded-3xl border border-white/60 bg-white/85 p-6 shadow-card backdrop-blur">
-                <p className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">
+              <div className="surface-card rounded-2xl border border-slate-200 p-6 shadow-sm">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
                   Snapshot
                 </p>
-                <div className="mt-4 space-y-4">
-                  <div className="flex items-center justify-between rounded-2xl border border-slate-200/60 bg-white/95 px-4 py-3 shadow-sm">
-                    <div className="flex items-center gap-3">
-                      <span className="grid h-10 w-10 place-items-center rounded-2xl bg-blue-500/10 text-xl text-blue-600">
-                        ⏳
-                      </span>
-                      <div>
-                        <p className="text-sm font-semibold text-slate-700">
-                          Pending
-                        </p>
-                        <p className="text-xs text-slate-500">
-                          In progress now
-                        </p>
-                      </div>
-                    </div>
-                    <span className="text-2xl font-bold text-slate-900">
+                <div className="mt-4 space-y-3 text-sm text-slate-600">
+                  <div className="surface-muted flex items-center justify-between rounded-xl px-3 py-2">
+                    <span>Pending</span>
+                    <span className="text-lg font-semibold text-slate-900">
                       {tasks.data.stats.total_pending}
                     </span>
                   </div>
-
-                  <div className="flex items-center justify-between rounded-2xl border border-slate-200/60 bg-white/95 px-4 py-3 shadow-sm">
-                    <div className="flex items-center gap-3">
-                      <span className="grid h-10 w-10 place-items-center rounded-2xl bg-emerald-500/10 text-xl text-emerald-600">
-                        ✅
-                      </span>
-                      <div>
-                        <p className="text-sm font-semibold text-slate-700">
-                          Completed
-                        </p>
-                        <p className="text-xs text-slate-500">
-                          Wins this cycle
-                        </p>
-                      </div>
-                    </div>
-                    <span className="text-2xl font-bold text-slate-900">
+                  <div className="surface-muted flex items-center justify-between rounded-xl px-3 py-2">
+                    <span>Completed</span>
+                    <span className="text-lg font-semibold text-slate-900">
                       {tasks.data.stats.total_completed}
                     </span>
                   </div>
-
-                  <div className="flex items-center justify-between rounded-2xl border border-slate-200/60 bg-white/95 px-4 py-3 shadow-sm">
-                    <div className="flex items-center gap-3">
-                      <span className="grid h-10 w-10 place-items-center rounded-2xl bg-violet-500/10 text-xl text-violet-600">
-                        📈
-                      </span>
-                      <div>
-                        <p className="text-sm font-semibold text-slate-700">
-                          Completion rate
-                        </p>
-                        <p className="text-xs text-slate-500">
-                          7-day rolling trend
-                        </p>
-                      </div>
-                    </div>
-                    <span className="text-2xl font-bold text-slate-900">
-                      {getCompletionRate()}%
+                  <div className="surface-muted flex items-center justify-between rounded-xl px-3 py-2">
+                    <span>Completion rate</span>
+                    <span className="text-lg font-semibold text-slate-900">
+                      {completionRate}%
                     </span>
                   </div>
                 </div>
@@ -1111,79 +1123,22 @@ const TaskManager: React.FC = () => {
             )}
 
             {tasks?.data.ai_insight && (
-              <div className="rounded-3xl border border-white/60 bg-gradient-to-br from-indigo-500/12 via-purple-500/12 to-pink-500/12 p-6 shadow-card backdrop-blur">
-                <div className="flex items-start gap-3">
-                  <span className="grid h-10 w-10 place-items-center rounded-2xl bg-brand-500 text-white">
-                    💡
-                  </span>
-                  <div>
-                    <p className="text-sm font-semibold text-slate-700">
-                      AI productivity insight
-                    </p>
-                    <p className="mt-2 text-sm text-slate-600">
-                      {tasks.data.ai_insight}
-                    </p>
-                  </div>
-                </div>
+              <div className="surface-highlight rounded-2xl border border-indigo-100 p-6 shadow-sm">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-indigo-600">
+                  AI productivity insight
+                </p>
+                <p className="mt-3 text-sm text-indigo-700">
+                  {tasks.data.ai_insight}
+                </p>
               </div>
             )}
-
-            <div className="rounded-3xl border border-white/60 bg-white/85 p-6 shadow-card backdrop-blur">
-              <p className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">
-                Workspace advantages
-              </p>
-              <ul className="mt-4 space-y-4 text-sm text-slate-600">
-                <li className="flex items-start gap-3">
-                  <span className="mt-0.5 text-brand-500">•</span>
-                  <span>
-                    Offline-first architecture with local storage fallback and
-                    smart sync once the Jac backend is back online.
-                  </span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <span className="mt-0.5 text-brand-500">•</span>
-                  <span>
-                    Service worker covers the Vite asset pipeline and keeps API
-                    traffic live, preventing stale responses.
-                  </span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <span className="mt-0.5 text-brand-500">•</span>
-                  <span>
-                    Featured templates and AI parsing reduce manual entry so
-                    teams can log tasks in seconds.
-                  </span>
-                </li>
-              </ul>
-            </div>
           </aside>
-        </section>
-
-        {/* Footer */}
-        <div className="text-center mt-20 pb-8">
-          <div className="inline-flex items-center gap-4 px-6 py-3 bg-white/40 backdrop-blur-xl border border-white/20 rounded-full shadow-lg">
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
-              <span className="text-sm font-medium text-slate-600">
-                Powered by Jac Language & AI
-              </span>
-            </div>
-            <div className="w-px h-4 bg-slate-300"></div>
-            <span className="text-sm font-medium text-slate-600">
-              TypeScript React Frontend
-            </span>
-          </div>
         </div>
-      </div>
 
-      {/* Task Templates Modal */}
-      {isTemplatesOpen && (
-        <TaskTemplates
-          isOpen={isTemplatesOpen}
-          onSelectTemplate={handleTemplateSelect}
-          onClose={() => setIsTemplatesOpen(false)}
-        />
-      )}
+        <footer className="mt-12 text-center text-xs text-slate-400">
+          <span>Powered by Jac AI • Offline smart sync • PWA ready</span>
+        </footer>
+      </main>
     </div>
   );
 };
