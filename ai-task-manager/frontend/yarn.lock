@@ -1174,14 +1174,19 @@
     "@vercel/node" "5.3.24"
     "@vercel/static-config" "3.1.2"
 
-"@vercel/hono@0.1.2":
-  version "0.1.2"
-  resolved "https://registry.npmjs.org/@vercel/hono/-/hono-0.1.2.tgz"
-  integrity sha512-sVjshneJZ6ww5PSU4DhUK9dPr5Q9/UREKMk/00oCUw/XZhosJ2OxXYvZzDlexB1YtgqtbAxZUkE0jWkTwPOSWQ==
+"@vercel/hono@0.1.3":
+  version "0.1.3"
+  resolved "https://registry.yarnpkg.com/@vercel/hono/-/hono-0.1.3.tgz#632463e2a8b74fe720d6fcc6222b90616494eaf7"
+  integrity sha512-xgvW26trsh2Hz2JfpGnynAVv4MqeYdiOE6QzgACWSU6WFtTk9jyY1UvTPwJcLc1bkoCSngpzPPJNX23damHwaA==
   dependencies:
+    "@vercel/nft" "0.30.1"
     "@vercel/node" "5.3.24"
     "@vercel/static-config" "3.1.2"
+    fs-extra "11.1.0"
+    path-to-regexp "8.3.0"
+    rolldown "1.0.0-beta.35"
     ts-morph "12.0.0"
+    zod "3.22.4"
 
 "@vercel/hydrogen@1.2.4":
   version "1.2.4"
@@ -1191,10 +1196,10 @@
     "@vercel/static-config" "3.1.2"
     ts-morph "12.0.0"
 
-"@vercel/next@4.13.0":
-  version "4.13.0"
-  resolved "https://registry.npmjs.org/@vercel/next/-/next-4.13.0.tgz"
-  integrity sha512-DIfZucRjTihIUolR2v9MpugpazPoo02NkwA+Pk+/NmmSunf7XLSC42QG1OkSyzeGsXQ0t4nPAY6NQKYp9+NZnQ==
+"@vercel/next@4.13.1":
+  version "4.13.1"
+  resolved "https://registry.yarnpkg.com/@vercel/next/-/next-4.13.1.tgz#90e425c87bbed3c2075461810559b769ecf814b7"
+  integrity sha512-R8iuP9VNg6oGzB/q/GKeWRskRt+O17mBh3R+PuLLxSqziLt9Mf4FW3PVGHDi7+s/lHO/RbY3TZe78ImzTS0UPw==
   dependencies:
     "@vercel/nft" "0.30.1"
 
@@ -1244,10 +1249,10 @@
     typescript "4.9.5"
     undici "5.28.4"
 
-"@vercel/python@5.0.5":
-  version "5.0.5"
-  resolved "https://registry.npmjs.org/@vercel/python/-/python-5.0.5.tgz"
-  integrity sha512-XLG/fDe2hflzNtSWuoASTo+N2c4hl6SbcufvBRYa7BnBQK9t4ZH1IEu+vJkq2AUoVczp5JEYLEXkIGm8KBtoeg==
+"@vercel/python@5.0.7":
+  version "5.0.7"
+  resolved "https://registry.yarnpkg.com/@vercel/python/-/python-5.0.7.tgz#aaa89c829db1032ce815be64b90284f533446322"
+  integrity sha512-hswxQErqha3aLxPqdisPEN2WpN422OMbxK1O2DA8saPi1opRh1SjD9kFaPu74iY9H0lIjN+evQpBVeCFmn6n2g==
 
 "@vercel/redwood@2.3.6":
   version "2.3.6"
@@ -3390,10 +3395,10 @@ v8-compile-cache-lib@^3.0.1:
   resolved "https://registry.npmjs.org/v8-compile-cache-lib/-/v8-compile-cache-lib-3.0.1.tgz"
   integrity sha512-wa7YjyUGfNZngI/vtK0UHAN+lgDCxBPCylVXGp0zu59Fz5aiGtNXaq3DhIov063MorB+VfufLh3JlF2KdTK3xg==
 
-vercel@^48.1.6:
-  version "48.1.6"
-  resolved "https://registry.npmjs.org/vercel/-/vercel-48.1.6.tgz"
-  integrity sha512-bcfocpaHfG0FHpTdY59Pfgm26cznI7+9KhGAnVkv4pU+oM6Ggc+w/nnsjuS5EY+/v3vI3f8cYamE6DDqQ3CpEQ==
+vercel@^48.2.1:
+  version "48.2.1"
+  resolved "https://registry.yarnpkg.com/vercel/-/vercel-48.2.1.tgz#1c184c23c7e7d2cf568f41d4c01dc2f2958482aa"
+  integrity sha512-TpUpOw2LskMa48/d1udrSF/4bDtqnvlo/i7URK8gS0OgyLDhfgKxtZ1zvKlQ6/TzOPyYPp6iY9MFG3St6e1WuA==
   dependencies:
     "@vercel/blob" "1.0.2"
     "@vercel/build-utils" "12.1.0"
@@ -3402,11 +3407,11 @@ vercel@^48.1.6:
     "@vercel/fun" "1.1.6"
     "@vercel/go" "3.2.3"
     "@vercel/h3" "0.1.2"
-    "@vercel/hono" "0.1.2"
+    "@vercel/hono" "0.1.3"
     "@vercel/hydrogen" "1.2.4"
-    "@vercel/next" "4.13.0"
+    "@vercel/next" "4.13.1"
     "@vercel/node" "5.3.24"
-    "@vercel/python" "5.0.5"
+    "@vercel/python" "5.0.7"
     "@vercel/redwood" "2.3.6"
     "@vercel/remix-builder" "5.4.12"
     "@vercel/ruby" "2.2.1"
