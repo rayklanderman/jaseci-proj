@@ -197,12 +197,39 @@ Invoke-WebRequest -Uri "http://localhost:8000/walker/generate_docs" -Method POST
 4. Test locally and on deployed version
 5. Submit a pull request
 
-## 📄 License
+## � Security
 
-This project is for educational and demonstration purposes. Please respect repository licenses and API terms of service when using third-party services.
+### API Key Management
+- **Google Gemini API Key**: Stored securely as environment variables, never committed to code
+- **Environment Variables**: All sensitive credentials managed through platform-specific secure storage
+- **Access Control**: API keys are validated server-side before processing requests
 
-## 🙏 Acknowledgments
+### Input Validation & Sanitization
+- **Repository URLs**: Validated to ensure they are valid GitHub HTTPS URLs
+- **Rate Limiting**: Built-in protections against abuse and excessive API usage
+- **Content Filtering**: Only processes public GitHub repositories
 
-- Built with [Jac Language](https://jac-lang.org/) for multi-agent systems
-- Powered by [Google Gemini AI](https://ai.google.dev/)
-- Deployed on [Streamlit Cloud](https://streamlit.io/cloud) and [Render](https://render.com/)
+### CORS Configuration
+- **Cross-Origin Requests**: Properly configured for Streamlit Cloud domain
+- **Origin Validation**: Restricted to allowed domains in production
+- **Secure Headers**: Appropriate CORS headers implemented in Jac walkers
+
+### Data Handling
+- **Temporary Processing**: Repositories cloned to temporary directories, cleaned up after processing
+- **No Data Persistence**: Generated documentation is transient and not stored long-term
+- **Privacy**: Repository content is processed in-memory and not retained
+
+### Best Practices
+- **HTTPS Only**: All communications use secure HTTPS protocols
+- **Error Handling**: Sensitive information never exposed in error messages
+- **Logging**: Minimal logging to prevent data leakage
+- **Updates**: Regular dependency updates for security patches
+
+### Security Considerations for Users
+- **Public Repositories Only**: Only processes publicly accessible GitHub repositories
+- **API Limits**: Respects Google Gemini API rate limits and quotas
+- **No Authentication**: Currently designed for public use without user accounts
+- **Data Privacy**: Repository analysis is performed server-side and results are returned to user
+
+### Reporting Security Issues
+If you discover a security vulnerability, please report it responsibly by creating an issue in the GitHub repository.
