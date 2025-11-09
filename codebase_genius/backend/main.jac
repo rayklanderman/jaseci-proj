@@ -1,6 +1,8 @@
 import from byllm.llm { Model }
 import from dotenv { load_dotenv }
 import os;
+import subprocess;
+import json;
 
 node Memory {}
 
@@ -18,12 +20,22 @@ node Session {
 
 node Supervisor {
     def orchestrate(repo_url: str) -> str {
-        # For now, keep the mock implementation working
-        # Real Python integration will be implemented separately
-        repo_name = repo_url.split('/')[-1];
-        docs = "# Documentation for " + repo_name + "\n\nThis is a mock documentation generated for the repository " + repo_url + ".\n\n## Features\n- Feature 1\n- Feature 2\n\n## Installation\n```bash\npip install " + repo_name + "\n```";
-        
-        return docs;
+        # Call Python orchestrator via subprocess
+        python_cmd = os.getcwd() + "/venv/Scripts/python.exe";
+        orchestrator_path = os.getcwd() + "/python/orchestrator.py";
+        result = subprocess.run([python_cmd, orchestrator_path, repo_url],
+                             capture_output=True, text=True, cwd=os.getcwd() + "/python");
+
+        if result.returncode == 0 {
+            response = json.loads(result.stdout);
+            if response["status"] == "success" {
+                return response["docs"];
+            } else {
+                return "# Error\n\nFailed to generate documentation: " + response["error"];
+            }
+        } else {
+            return "# Error\n\nFailed to run orchestrator: " + result.stderr;
+        }
     }
 
     def call_repo_mapper(repo_url: str) -> dict {
