@@ -1,0 +1,38 @@
+[global]
+
+# If false, makes your Streamlit script wide mode by default. If true, makes your Streamlit script run in narrow mode by default.
+wideMode = true
+
+# Controls whether uncaught app exceptions are displayed in the browser. By default, this is set to True and Streamlit displays app exceptions and associated tracebacks in the browser.
+showErrorDetails = false
+
+[server]
+
+# List of folders that should not be watched for changes. This impacts both "Run on Save" and @st.cache.
+folderWatchBlacklist = ['']
+
+# Change the type of file watcher used by Streamlit, or turn it off completely.
+fileWatcherType = "auto"
+
+# Symmetric key used to produce signed cookies. If deploying on multiple replicas, this should be set to the same value across all replicas to ensure they all validate the same cookies.
+cookieSecret = "your-secret-key-here"
+
+# If false, will attempt to open a new tab or window every time Streamlit is called. If true, will only open a new tab the first time Streamlit is called.
+reuseConnection = true
+
+# Enables support for Cross-Origin Request Sharing (CORS) protection, for added security.
+enableCORS = false
+
+# Enables support for Cross-Site Request Forgery (XSRF) protection, for added security.
+enableXsrfProtection = true
+
+[browser]
+
+# Internet address where users should point their browsers in order to connect to the app. Can be IP address or DNS name and path.
+serverAddress = "localhost"
+
+# Whether to send usage statistics to Streamlit.
+gatherUsageStats = false
+
+# Port where users should point their browsers in order to connect to the app.
+serverPort = 8501

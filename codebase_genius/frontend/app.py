@@ -1,6 +1,7 @@
 import streamlit as st
 import requests
 import time
+import os
 
 # Page config
 st.set_page_config(
@@ -9,8 +10,8 @@ st.set_page_config(
     layout="wide",
 )
 
-# Constants
-BASE_URL = "http://localhost:8000"
+# Constants - Use environment variable for API URL, fallback to localhost for development
+BASE_URL = os.environ.get("BACKEND_URL", "http://localhost:8000")
 GENERATE_DOCS_ENDPOINT = f"{BASE_URL}/walker/generate_docs"
 STATUS_ENDPOINT = f"{BASE_URL}/walker/get_status"
 
