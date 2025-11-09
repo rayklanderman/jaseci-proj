@@ -21,7 +21,8 @@ node Session {
 node Supervisor {
     def orchestrate(repo_url: str) -> str {
         # Call Python orchestrator via subprocess
-        python_cmd = os.getcwd() + "/venv/Scripts/python.exe";
+        # Use system python on Render/Linux, fallback to venv on Windows
+        python_cmd = "python3";  # Use system python3 on Linux/Render
         orchestrator_path = os.getcwd() + "/python/orchestrator.py";
         result = subprocess.run([python_cmd, orchestrator_path, repo_url],
                              capture_output=True, text=True, cwd=os.getcwd() + "/python");
