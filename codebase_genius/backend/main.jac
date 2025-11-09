@@ -101,6 +101,8 @@ walker generate_docs {
 
     obj __specs__ {
         static has auth: bool = False;
+        static has cors: bool = True;
+        static has cors_origins: list = ["*"];
     }
 
     can execute with `root entry {
@@ -126,6 +128,8 @@ walker generate_docs {
 walker get_status {
     obj __specs__ {
         static has auth: bool = False;
+        static has cors: bool = True;
+        static has cors_origins: list = ["*"];
     }
     can get_status with `root entry {
         report {"status": "processing", "message": "Documentation generation in progress"};
@@ -135,6 +139,8 @@ walker get_status {
 walker download_docs {
     obj __specs__ {
         static has auth: bool = False;
+        static has cors: bool = True;
+        static has cors_origins: list = ["*"];
     }
     can download_docs with `root entry {
         report {"docs": "markdown content", "content_type": "text/markdown"};
