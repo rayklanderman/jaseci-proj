@@ -1,102 +1,208 @@
 # Codebase Genius - AI Documentation System
 
-An AI-powered system that automatically generates high-quality documentation for any software repository using multi-agent architecture.
+[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://geniuscodebase.streamlit.app/)
+[![Render](https://img.shields.io/badge/Render-Deployed-success)](https://codebasegenius.onrender.com)
+
+An AI-powered system that automatically generates high-quality documentation for any software repository using multi-agent architecture and Google Gemini AI.
+
+## 🌟 Live Demo
+
+- **Frontend (Streamlit)**: https://geniuscodebase.streamlit.app/
+- **Backend API (Render)**: https://codebasegenius.onrender.com/
 
 ## Current Status ✅
 
-- **Backend API**: Running on `http://localhost:8000` with mock implementation
-- **Jac Server**: Multi-agent architecture functional
-- **API Testing**: `/walker/generate_docs` endpoint tested and working
-- **Next Steps**: Frontend setup and real Python module integration
+- **Deployment**: Fully deployed on Streamlit Cloud and Render
+- **AI Integration**: Google Gemini 2.5 Flash API integrated and working
+- **CORS**: Cross-origin requests configured for production
+- **Testing**: Successfully tested with multiple repositories
+- **API Limits**: Handles small to medium repositories (large repos may hit API limits)
 
-## Features
+## ✨ Features
 
-- **Multi-Agent System**: Supervisor, RepoMapper, CodeAnalyzer, and DocGenie agents work together
-- **GitHub Integration**: Clones and analyzes public repositories
-- **Code Analysis**: Uses Tree-sitter for parsing source code
-- **Graph Visualization**: Builds Code Context Graphs with NetworkX
-- **Markdown Output**: Generates comprehensive documentation
-- **Web UI**: Streamlit-based frontend for easy interaction
+- **🤖 AI-Powered Analysis**: Uses Google Gemini AI for intelligent code understanding
+- **🔄 Multi-Agent System**: Supervisor, RepoMapper, CodeAnalyzer, and DocGenie agents
+- **📊 Code Structure Analysis**: Parses code relationships and dependencies
+- **🌐 Graph Visualization**: Builds Code Context Graphs with NetworkX
+- **📝 Professional Documentation**: Generates comprehensive markdown docs
+- **🎨 Modern Web UI**: Streamlit-based interface with real-time progress
+- **☁️ Cloud Deployed**: Accessible online without local setup
+- **🔒 Secure**: Environment variable management for API keys
 
-## Quick Start
+## 🚀 Quick Start
 
-### Backend (Currently Running)
+### Use the Live Application
 
-The Jac server is already running with mock data for testing:
+1. Visit https://geniuscodebase.streamlit.app/
+2. Enter any GitHub repository URL
+3. Click "Generate Documentation"
+4. Download the AI-generated markdown documentation
 
-```bash
-cd backend
-jac serve main.jac
-```
+### Local Development
 
-Test the API:
+#### Prerequisites
+- Python 3.8+
+- Google Gemini API key
+- Git
 
-```powershell
-Invoke-WebRequest -Uri "http://localhost:8000/walker/generate_docs" -Method POST -ContentType "application/json" -Body '{"repo_url": "https://github.com/microsoft/vscode"}'
-```
+#### Backend Setup
 
-### Frontend Setup (Next Step)
-
-1. Navigate to frontend directory:
-
+1. Clone and navigate:
    ```bash
-   cd frontend
+   git clone https://github.com/rayklanderman/jaseci-proj.git
+   cd jaseci-proj/codebase_genius/backend
    ```
 
 2. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+   pip install jaseci
+   ```
 
+3. Configure environment:
+   ```bash
+   cp .env.example .env
+   # Edit .env with your GEMINI_API_KEY
+   ```
+
+4. Start the Jac server:
+   ```bash
+   jac serve main.jac
+   ```
+
+#### Frontend Setup
+
+1. Navigate to frontend:
+   ```bash
+   cd ../frontend
+   ```
+
+2. Install dependencies:
    ```bash
    pip install -r requirements.txt
    ```
 
 3. Run the app:
-
    ```bash
    streamlit run app.py
    ```
 
-## Architecture
+## 🏗️ Architecture
 
-The system consists of four main agents:
+The system uses a sophisticated multi-agent architecture:
 
-1. **Supervisor**: Orchestrates the entire documentation workflow
-2. **RepoMapper**: Clones repositories and generates file trees
-3. **CodeAnalyzer**: Parses code and builds relationship graphs
-4. **DocGenie**: Synthesizes data into final markdown documentation
+1. **Supervisor Agent**: Orchestrates the entire documentation workflow
+2. **RepoMapper Agent**: Clones repositories and generates file structure analysis
+3. **CodeAnalyzer Agent**: Parses code using Tree-sitter and builds relationship graphs
+4. **DocGenie Agent**: Synthesizes all data into professional markdown documentation
 
-## API Endpoints
+### Data Flow
+```
+GitHub Repo → Jac Agents → Python Modules → Gemini AI → Markdown Docs
+```
 
-- `POST /walker/generate_docs` - Generate documentation for a repo
-- `POST /walker/get_status` - Check current processing status
+## 📡 API Endpoints
+
+- `POST /walker/generate_docs` - Generate documentation for a repository
+  ```json
+  {
+    "repo_url": "https://github.com/microsoft/vscode",
+    "session_id": ""
+  }
+  ```
+- `POST /walker/get_status` - Check processing status
 - `POST /walker/download_docs` - Download generated documentation
 
-## Technologies Used
+## 🛠️ Technologies Used
 
-- **Jac Language**: For agent orchestration and graph-based logic
-- **byLLM**: Multi-tool prompting framework
-- **Tree-sitter**: Code parsing and syntax analysis
-- **NetworkX**: Graph construction and visualization
-- **GitPython**: Repository cloning
-- **Streamlit**: Web interface
-- **Google Gemini**: LLM for intelligent processing
+- **Jac Language**: Agent orchestration and graph-based logic
+- **Google Gemini 2.5 Flash**: AI analysis and documentation generation
+- **Tree-sitter**: Advanced code parsing and syntax analysis
+- **NetworkX**: Graph construction and code relationship visualization
+- **GitPython**: Repository cloning and version control operations
+- **Streamlit**: Modern web interface framework
+- **FastAPI/Uvicorn**: High-performance API server
+- **Requests**: HTTP client for API communications
 
-## Project Structure
+## 📁 Project Structure
 
-```bash
+```
 codebase_genius/
 ├── backend/
-│   ├── main.jac              # Main server and agent definitions
+│   ├── main.jac              # Main Jac server with CORS-enabled walkers
 │   ├── python/
-│   │   └── repo_parser.py    # Python utilities for repo processing
-│   ├── agents/               # Agent implementations (merged in main.jac)
+│   │   ├── orchestrator.py   # Coordinates AI analysis pipeline
+│   │   ├── repo_parser.py    # Repository processing with Gemini integration
+│   │   └── gemini_connector.py # Google AI API wrapper
 │   ├── outputs/              # Generated documentation storage
+│   ├── render.yaml           # Render deployment configuration
+│   ├── start.sh              # Linux-compatible startup script
 │   ├── requirements.txt
-│   └── .env
+│   └── .env                  # Environment variables (API keys)
 └── frontend/
-    ├── app.py                # Streamlit UI
+    ├── app.py                # Streamlit UI with production API support
     └── requirements.txt
 ```
 
-## License
+## 🚀 Deployment
 
-This project is for educational purposes. Please respect repository licenses and terms of service.
+### Streamlit Cloud (Frontend)
+- Automatically deployed from GitHub
+- Environment variable: `BACKEND_URL=https://codebasegenius.onrender.com`
+
+### Render (Backend)
+- Auto-deploys on git push
+- Includes CORS configuration for cross-origin requests
+- Environment variables managed securely
+
+## 🐛 Troubleshooting
+
+### Common Issues
+
+**502 Bad Gateway Error**
+- Check that `BACKEND_URL` is set correctly in Streamlit Cloud
+- Verify Render service is running
+
+**API Rate Limits**
+- Google Gemini has free tier limits (15 RPM, 1M tokens/month)
+- Try smaller repositories or upgrade to paid plan
+
+**Large Repository Timeouts**
+- Complex repos may exceed Render's 30-second timeout
+- Consider processing in chunks or using paid Render plan
+
+**CORS Errors**
+- Ensure all Jac walkers have CORS configuration
+- Check browser developer tools for specific errors
+
+### Testing Commands
+
+Test local backend:
+```powershell
+Invoke-WebRequest -Uri "http://localhost:8000/walker/generate_docs" -Method POST -ContentType "application/json" -Body '{"repo_url": "https://github.com/octocat/Hello-World"}'
+```
+
+## 📊 Performance Notes
+
+- **Small repos** (< 50 files): Fast processing, reliable
+- **Medium repos** (50-200 files): May take 30-60 seconds
+- **Large repos** (> 200 files): May hit API limits or timeouts
+- **Free tier limits**: Monitor Google AI Studio usage dashboard
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test locally and on deployed version
+5. Submit a pull request
+
+## 📄 License
+
+This project is for educational and demonstration purposes. Please respect repository licenses and API terms of service when using third-party services.
+
+## 🙏 Acknowledgments
+
+- Built with [Jac Language](https://jac-lang.org/) for multi-agent systems
+- Powered by [Google Gemini AI](https://ai.google.dev/)
+- Deployed on [Streamlit Cloud](https://streamlit.io/cloud) and [Render](https://render.com/)
