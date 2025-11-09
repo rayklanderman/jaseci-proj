@@ -2,6 +2,7 @@ services:
   - type: web
     name: codebase-genius-backend
     runtime: python3
+    rootDir: codebase_genius/backend
     buildCommand: |
       pip install -r requirements.txt
       pip install jaseci
@@ -10,7 +11,7 @@ services:
       - key: GEMINI_API_KEY
         sync: false  # Set this in Render dashboard
       - key: PYTHONPATH
-        value: /opt/render/project/src/backend/python
+        value: python
       - key: PORT
         fromService:
           type: web
