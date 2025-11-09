@@ -31,26 +31,102 @@ def parse_code(repo_path: str) -> dict:
     """Parse source files using regex and Gemini AI for intelligent analysis."""
     code_context = {}
 
+    # Supported file extensions for different programming languages
+    supported_extensions = {
+        '.py',    # Python
+        '.js',    # JavaScript
+        '.ts',    # TypeScript
+        '.tsx',   # React TypeScript
+        '.jsx',   # React JavaScript
+        '.java',  # Java
+        '.cpp',   # C++
+        '.c',     # C
+        '.cs',    # C#
+        '.php',   # PHP
+        '.rb',    # Ruby
+        '.go',    # Go
+        '.rs',    # Rust
+        '.swift', # Swift
+        '.kt',    # Kotlin
+        '.scala', # Scala
+    }
+
     for root, dirs, files in os.walk(repo_path):
         for file in files:
-            if file.endswith('.py'):
+            if any(file.endswith(ext) for ext in supported_extensions):
                 filepath = os.path.join(root, file)
-                with open(filepath, 'r', encoding='utf-8', errors='ignore') as f:
-                    code = f.read()
+                try:
+                    with open(filepath, 'r', encoding='utf-8', errors='ignore') as f:
+                        code = f.read()
 
-                # Use regex for basic parsing
-                functions = re.findall(r'def\s+(\w+)\s*\(', code)
-                classes = re.findall(r'class\s+(\w+)\s*[:\(]', code)
-                imports = re.findall(r'^(?:from\s+[\w.]+\s+import|import\s+[\w.]+)', code, re.MULTILINE)
+                    # Language-specific parsing patterns
+                    functions = []
+                    classes = []
+                    imports = []
 
-                rel_path = os.path.relpath(filepath, repo_path)
-                code_context[rel_path] = {
-                    'functions': functions,
-                    'classes': classes,
-                    'imports': imports,
-                    'code': code[:2000],  # First 2000 chars for AI analysis
-                    'full_code': code
-                }
+                    if file.endswith('.py'):
+                        # Python patterns
+                        functions = re.findall(r'def\s+(\w+)\s*\(', code)
+                        classes = re.findall(r'class\s+(\w+)\s*[:\(]', code)
+                        imports = re.findall(r'^(?:from\s+[\w.]+\s+import|import\s+[\w.]+)', code, re.MULTILINE)
+
+                    elif file.endswith(('.js', '.ts', '.jsx', '.tsx')):
+                        # JavaScript/TypeScript patterns
+                        functions = re.findall(r'(?:function\s+(\w+)|const\s+(\w+)\s*=\s*(?:\([^)]*\)\s*=>|function))', code)
+                        functions = [f for f in functions if f[0] or f[1]]  # Filter out None values
+                        functions = [f[0] if f[0] else f[1] for f in functions]
+                        classes = re.findall(r'class\s+(\w+)', code)
+                        imports = re.findall(r'^(?:import\s+.*?\s+from\s+[\'"]([^\'"]+)[\'"]|const\s+\w+\s*=\s*require\([^)]+\))', code, re.MULTILINE)
+
+                    elif file.endswith('.java'):
+                        # Java patterns
+                        functions = re.findall(r'(?:public|private|protected)?\s*(?:static\s+)?(?:\w+\s+)+\s+(\w+)\s*\(', code)
+                        classes = re.findall(r'class\s+(\w+)', code)
+                        imports = re.findall(r'^import\s+[^;]+;', code, re.MULTILINE)
+
+                    elif file.endswith(('.cpp', '.c')):
+                        # C/C++ patterns
+                        functions = re.findall(r'(?:[\w\*]+\s+)+\s*(\w+)\s*\(', code)
+                        classes = re.findall(r'class\s+(\w+)', code)
+                        imports = re.findall(r'^#include\s+[<"]([^>"]+)[>"]', code, re.MULTILINE)
+
+                    elif file.endswith('.cs'):
+                        # C# patterns
+                        functions = re.findall(r'(?:public|private|protected)?\s*(?:static\s+)?(?:\w+\s+)+\s+(\w+)\s*\(', code)
+                        classes = re.findall(r'class\s+(\w+)', code)
+                        imports = re.findall(r'^using\s+[^;]+;', code, re.MULTILINE)
+
+                    elif file.endswith('.php'):
+                        # PHP patterns
+                        functions = re.findall(r'function\s+(\w+)\s*\(', code)
+                        classes = re.findall(r'class\s+(\w+)', code)
+                        imports = re.findall(r'^(?:require|include)(?:_once)?\s*[\'"]([^\'"]+)[\'"]', code, re.MULTILINE)
+
+                    elif file.endswith('.rb'):
+                        # Ruby patterns
+                        functions = re.findall(r'def\s+(\w+)', code)
+                        classes = re.findall(r'class\s+(\w+)', code)
+                        imports = re.findall(r'^(?:require|require_relative)\s+[\'"]([^\'"]+)[\'"]', code, re.MULTILINE)
+
+                    # Default fallback for other languages
+                    else:
+                        functions = re.findall(r'(?:function|def|func)\s+(\w+)\s*\(', code)
+                        classes = re.findall(r'class\s+(\w+)', code)
+                        imports = []
+
+                    rel_path = os.path.relpath(filepath, repo_path)
+                    code_context[rel_path] = {
+                        'functions': functions,
+                        'classes': classes,
+                        'imports': imports,
+                        'code': code[:2000],  # First 2000 chars for AI analysis
+                        'full_code': code,
+                        'language': file.split('.')[-1].upper()
+                    }
+
+                except Exception as e:
+                    print(f"Error parsing {filepath}: {e}")
+                    continue
 
     return code_context
 
@@ -91,18 +167,39 @@ def analyze_code_with_ai(code_context: dict, gemini_connector: GeminiConnector) 
     enhanced_context = {}
 
     for file_path, data in code_context.items():
+        language = data.get('language', 'Unknown')
+        lang_name = {
+            'PY': 'Python',
+            'JS': 'JavaScript',
+            'TS': 'TypeScript',
+            'TSX': 'React TypeScript',
+            'JSX': 'React JavaScript',
+            'JAVA': 'Java',
+            'CPP': 'C++',
+            'C': 'C',
+            'CS': 'C#',
+            'PHP': 'PHP',
+            'RB': 'Ruby',
+            'GO': 'Go',
+            'RS': 'Rust',
+            'SWIFT': 'Swift',
+            'KT': 'Kotlin',
+            'SCALA': 'Scala'
+        }.get(language, language)
+
         # Analyze the code with AI
         analysis_prompt = f"""
-        Analyze this Python code file and provide insights:
+        Analyze this {lang_name} code file and provide insights:
 
         File: {file_path}
+        Language: {lang_name}
         Code:
         {data['code']}
 
         Please provide:
         1. A brief description of what this file does
         2. Key functions and their purposes
-        3. Classes and their responsibilities
+        3. Classes and their responsibilities (if applicable)
         4. Important design patterns or architectural decisions
         5. Dependencies and relationships
 
@@ -118,12 +215,11 @@ def analyze_code_with_ai(code_context: dict, gemini_connector: GeminiConnector) 
         function_analyses = {}
         for func in data['functions'][:5]:  # Limit to first 5 functions
             func_prompt = f"""
-            Analyze this Python function:
+            Analyze this {lang_name} function/method:
 
-            def {func}(...):
-                # Function code would be here
+            {func}(...)
 
-            Based on the function name and typical usage patterns, what does this function likely do?
+            Based on the function name and typical usage patterns in {lang_name}, what does this function likely do?
             Provide a brief description.
             """
             try:
