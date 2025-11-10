@@ -28,7 +28,7 @@ if 'repo_input' not in st.session_state:
 # Title and description
 st.title("🤖 Codebase Genius")
 st.markdown("**AI-Powered Repository Documentation Generator**")
-st.markdown("Transform any GitHub repository into comprehensive, intelligent documentation using advanced AI analysis.")
+st.markdown("Transform any GitHub repository into comprehensive, intelligent documentation using advanced AI and multi-agent analysis.")
 
 # Sidebar with information
 with st.sidebar:
