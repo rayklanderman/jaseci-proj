@@ -5,7 +5,17 @@
 
 An AI-powered system that automatically generates high-quality documentation for any software repository using multi-agent architecture and Google Gemini AI.
 
-## 🌟 Live Demo
+## 🎥 Video Showcase
+
+[![Codebase Genius Demo](https://img.youtube.com/vi/80_xLhNTH6E/0.jpg)](https://youtu.be/80_xLhNTH6E)
+
+*Click the image above to watch a comprehensive demonstration of Codebase Genius in action!*
+
+## 📸 Screenshots & Demo
+
+📋 **[View Screenshots & Interface Demo](https://docs.google.com/presentation/d/1grC2dszwYVi4flFYApa_CBSHOYOeZqYnn6Emmepx6ME/edit?usp=sharing)** - See the application interface and generated documentation examples.
+
+## � Live Demo
 
 - **Frontend (Streamlit)**: https://geniuscodebase.streamlit.app/
 - **Backend API (Render)**: https://codebasegenius.onrender.com/
