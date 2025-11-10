@@ -114,7 +114,7 @@ with col1:
                 # Now make the actual API call
                 payload = {"repo_url": repo_url, "session_id": ""}
                 progress_bar.progress(0.95)
-                status_text.markdown("**🔄 Processing with AI...**\n*This may take 30-60 seconds for larger repositories*")
+                status_text.markdown("**🔄 Processing with AI...**\n*This may take 1-3 minutes for larger repositories. Please be patient!*")
 
                 response = requests.post(GENERATE_DOCS_ENDPOINT, json=payload, timeout=300)  # 5 minute timeout
 
@@ -144,7 +144,7 @@ with col1:
                     st.error(f"❌ Server error: {response.status_code} - {response.text}")
 
             except requests.exceptions.Timeout:
-                st.error("⏰ Request timed out. Large repositories may take longer to process.")
+                st.error("⏰ Request timed out after 5 minutes. Very large repositories may exceed this limit - try a smaller repository or contact support.")
             except requests.exceptions.ConnectionError:
                 st.error("🔌 Cannot connect to backend server. Please check your connection.")
             except Exception as e:
