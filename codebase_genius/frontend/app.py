@@ -144,7 +144,7 @@ with col1:
                     st.error(f"❌ Server error: {response.status_code} - {response.text}")
 
             except requests.exceptions.Timeout:
-                st.error("⏰ Request timed out after 5 minutes. Very large repositories may exceed this limit - try a smaller repository or contact support.")
+                st.warning("⏰ Processing is taking longer than expected. The AI is still working on your repository - very large codebases can take up to 5 minutes. Please wait a bit more or try a smaller repository.")
             except requests.exceptions.ConnectionError:
                 st.error("🔌 Cannot connect to backend server. Please check your connection.")
             except Exception as e:
