@@ -65,6 +65,14 @@ with col1:
     # Generate button
     if st.button("🚀 Generate Documentation", type="primary", use_container_width=True):
         if repo_url:
+            # Strip whitespace from repo_url
+            repo_url = repo_url.strip()
+            
+            # Validate GitHub URL
+            if not repo_url.startswith("https://github.com/"):
+                st.error("❌ Please enter a valid GitHub repository URL starting with https://github.com/")
+                st.stop()
+            
             st.session_state.processing = True
             st.session_state.current_repo = repo_url
 
