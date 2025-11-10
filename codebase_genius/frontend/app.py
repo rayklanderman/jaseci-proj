@@ -68,6 +68,12 @@ with col1:
             # Strip whitespace from repo_url
             repo_url = repo_url.strip()
             
+            # Clean URL by removing query parameters and fragments
+            if '?' in repo_url:
+                repo_url = repo_url.split('?')[0]
+            if '#' in repo_url:
+                repo_url = repo_url.split('#')[0]
+            
             # Validate GitHub URL
             if not repo_url.startswith("https://github.com/"):
                 st.error("❌ Please enter a valid GitHub repository URL starting with https://github.com/")
