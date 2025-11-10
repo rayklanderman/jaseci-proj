@@ -22,6 +22,8 @@ if 'current_repo' not in st.session_state:
     st.session_state.current_repo = None
 if 'processing' not in st.session_state:
     st.session_state.processing = False
+if 'repo_input' not in st.session_state:
+    st.session_state.repo_input = ""
 
 # Title and description
 st.title("🤖 Codebase Genius")
@@ -58,6 +60,7 @@ with col1:
     # Input section
     repo_url = st.text_input(
         "GitHub Repository URL",
+        value=st.session_state.repo_input,
         placeholder="https://github.com/microsoft/vscode",
         help="Enter the full URL of a public GitHub repository"
     )
@@ -81,6 +84,7 @@ with col1:
             
             st.session_state.processing = True
             st.session_state.current_repo = repo_url
+            st.session_state.repo_input = repo_url  # Sync the input field
 
             # Create a container for progress updates
             progress_container = st.empty()
@@ -205,7 +209,9 @@ with col2:
 
         for example in examples:
             if st.button(f"📖 {example.split('/')[-1]}", key=f"example_{example}"):
-                st.session_state.current_repo = example
+                st.session_state.repo_input = example
+                st.session_state.generated_docs = None  # Clear previous results
+                st.session_state.current_repo = None
                 st.rerun()
 
 # Footer
