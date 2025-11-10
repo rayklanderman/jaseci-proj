@@ -68,40 +68,73 @@ with col1:
             st.session_state.processing = True
             st.session_state.current_repo = repo_url
 
-            with st.spinner("🔄 Cloning repository and analyzing code..."):
-                try:
-                    payload = {"repo_url": repo_url, "session_id": ""}
-                    response = requests.post(GENERATE_DOCS_ENDPOINT, json=payload, timeout=300)  # 5 minute timeout
+            # Create a container for progress updates
+            progress_container = st.empty()
+            status_container = st.empty()
 
-                    if response.status_code == 200:
-                        data = response.json()
-                        reports = data.get("reports", [])
+            with progress_container.container():
+                progress_bar = st.progress(0)
+                status_text = st.empty()
 
-                        if reports:
-                            report = reports[0]
-                            if report.get("status") == "success":
-                                docs = report.get("docs", "")
-                                st.session_state.generated_docs = docs
-                                st.success("✅ Documentation generated successfully!")
+            # Progress phases with estimated times
+            phases = [
+                ("🔄 Initializing...", 0.1, "Setting up analysis environment"),
+                ("� Cloning repository...", 0.3, "Downloading repository files"),
+                ("🔍 Analyzing code structure...", 0.5, "Parsing functions, classes, and relationships"),
+                ("🤖 Generating AI insights...", 0.7, "Using Google Gemini for intelligent analysis"),
+                ("📝 Creating documentation...", 0.9, "Compiling professional markdown documentation"),
+                ("✅ Finalizing...", 1.0, "Preparing download")
+            ]
 
-                                # Show preview
-                                with st.expander("📖 Preview Documentation", expanded=True):
-                                    st.markdown(docs)
-                            else:
-                                st.error(f"❌ Generation failed: {report.get('docs', 'Unknown error')}")
+            try:
+                # Simulate progress through phases
+                for phase_name, progress_value, description in phases[:-1]:  # Don't show the last phase yet
+                    progress_bar.progress(progress_value)
+                    status_text.markdown(f"**{phase_name}**\n*{description}*")
+                    time.sleep(0.5)  # Brief pause to show each phase
+
+                # Now make the actual API call
+                payload = {"repo_url": repo_url, "session_id": ""}
+                progress_bar.progress(0.95)
+                status_text.markdown("**🔄 Processing with AI...**\n*This may take 30-60 seconds for larger repositories*")
+
+                response = requests.post(GENERATE_DOCS_ENDPOINT, json=payload, timeout=300)  # 5 minute timeout
+
+                # Complete progress
+                progress_bar.progress(1.0)
+                status_text.markdown("**✅ Processing complete!**")
+
+                if response.status_code == 200:
+                    data = response.json()
+                    reports = data.get("reports", [])
+
+                    if reports:
+                        report = reports[0]
+                        if report.get("status") == "success":
+                            docs = report.get("docs", "")
+                            st.session_state.generated_docs = docs
+                            st.success("✅ Documentation generated successfully!")
+
+                            # Show preview
+                            with st.expander("📖 Preview Documentation", expanded=True):
+                                st.markdown(docs)
                         else:
-                            st.error("❌ No response received from server")
+                            st.error(f"❌ Generation failed: {report.get('docs', 'Unknown error')}")
                     else:
-                        st.error(f"❌ Server error: {response.status_code} - {response.text}")
+                        st.error("❌ No response received from server")
+                else:
+                    st.error(f"❌ Server error: {response.status_code} - {response.text}")
 
-                except requests.exceptions.Timeout:
-                    st.error("⏰ Request timed out. Large repositories may take longer to process.")
-                except requests.exceptions.ConnectionError:
-                    st.error("🔌 Cannot connect to backend server. Make sure the Jac server is running on port 8000.")
-                except Exception as e:
-                    st.error(f"❌ Unexpected error: {str(e)}")
-                finally:
-                    st.session_state.processing = False
+            except requests.exceptions.Timeout:
+                st.error("⏰ Request timed out. Large repositories may take longer to process.")
+            except requests.exceptions.ConnectionError:
+                st.error("🔌 Cannot connect to backend server. Please check your connection.")
+            except Exception as e:
+                st.error(f"❌ Unexpected error: {str(e)}")
+            finally:
+                st.session_state.processing = False
+                # Clear progress indicators
+                progress_container.empty()
         else:
             st.error("⚠️ Please enter a repository URL")
 
